@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import type { NavView } from '../components/layout/Sidebar.js';
-import type { User, Department, Batch, Course, Announcement } from '../types/index.js';
+import type { User, Department, Batch, Announcement } from '../types/index.js';
 
 interface DashboardOverviewProps {
   onNavigate: (view: NavView) => void;
@@ -26,7 +26,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [generating, setGenerating] = useState(false);
   const [genMessage, setGenMessage] = useState('');
@@ -34,17 +33,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   useEffect(() => {
     const loadOverviewData = async () => {
       try {
-        const [usersRes, deptRes, batchRes, courseRes, annRes] = await Promise.all([
+        const [usersRes, deptRes, batchRes, annRes] = await Promise.all([
           api.getUsers(),
           api.getDepartments(),
           api.getBatches(),
-          api.getCourses(),
           api.getAnnouncements()
         ]);
         setUsers(usersRes.users || []);
         setDepartments(deptRes.departments || []);
         setBatches(batchRes.batches || []);
-        setCourses(courseRes.courses || []);
         setAnnouncements(annRes.announcements || []);
       } catch (err) {
         console.error('Failed to load dashboard overview data', err);
@@ -138,10 +135,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             <Users size={20} color="var(--primary-container)" />
           </div>
           <div style={{ fontSize: '34px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            {studentsCount || 4}
+            {studentsCount}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--primary-container)', marginTop: '4px' }}>
-            Across 4 Academic Years
+            Registered Students
           </div>
         </div>
 
@@ -151,7 +148,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             <GraduationCap size={20} color="var(--info)" />
           </div>
           <div style={{ fontSize: '34px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            {facultyCount || 2}
+            {facultyCount}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--info)', marginTop: '4px' }}>
             Professors & Instructors
@@ -164,10 +161,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             <Building2 size={20} color="var(--accent-purple)" />
           </div>
           <div style={{ fontSize: '34px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            {departments.length || 4}
+            {departments.length}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--accent-purple)', marginTop: '4px' }}>
-            CSE, IT, MECH, ECE & more
+            University Departments
           </div>
         </div>
 
@@ -177,23 +174,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             <Layers size={20} color="var(--warning)" />
           </div>
           <div style={{ fontSize: '34px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            {batches.length || 2}
+            {batches.length}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--warning)', marginTop: '4px' }}>
-            Cross-Dept & Multi-Year
+            Active Cohorts
           </div>
         </div>
 
         <div className="card" style={{ padding: '22px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="form-label">CURRICULUM CLASSES</span>
+            <span className="form-label">TIMETABLE SLOTS</span>
             <CalendarCheck size={20} color="var(--primary-container)" />
           </div>
           <div style={{ fontSize: '34px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            {courses.length || 3}
+            Active
           </div>
           <div style={{ fontSize: '12px', color: 'var(--primary-container)', marginTop: '4px' }}>
-            Registered University Courses
+            Automated Weekly Matrix
           </div>
         </div>
       </div>

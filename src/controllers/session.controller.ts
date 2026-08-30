@@ -113,6 +113,44 @@ export class SessionController {
     res.status(200).json({ success: true, message: `Session ${id} is COMPLETED.` });
   }
 
+  static async launchSlotSession(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const { slotId, batchId } = req.body;
+    const professorId = req.user?.userId;
+    const db = await getDb();
+
+    let resolvedBatchId = batchId;
+    let resolvedRoomId = 'clr_turing_hall';
+
+    if (slotId) {
+      const slotRes = await db.query('SELECT batch_id, classroom_id FROM timetable_slots WHERE id = $1', [slotId]);
+      if (slotRes.rows.length > 0) {
+        if (!resolvedBatchId) resolvedBatchId = slotRes.rows[0].batch_id;
+        if (slotRes.rows[0].classroom_id) resolvedRoomId = slotRes.rows[0].classroom_id;
+      }
+    }
+
+    const roomRes = await db.query('SELECT id FROM classrooms LIMIT 1');
+    if (roomRes.rows.length > 0 && (!resolvedRoomId || resolvedRoomId === 'clr_turing_hall')) {
+      resolvedRoomId = roomRes.rows[0].id;
+    }
+
+    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const now = new Date();
+    const ends = new Date(now.getTime() + 120 * 60 * 1000); // 2 hours active
+
+    await db.query(
+      `INSERT INTO sessions (id, batch_id, professor_id, classroom_id, start_time, end_time, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')`,
+      [sessionId, resolvedBatchId || null, professorId, resolvedRoomId, now, ends]
+    );
+
+    res.status(201).json({
+      message: 'Live attendance session activated!',
+      sessionId,
+      status: 'ACTIVE'
+    });
+  }
+
   /**
    * Generates exportable QR code (PNG, SVG, or Data URL) with custom expiration window.
    */

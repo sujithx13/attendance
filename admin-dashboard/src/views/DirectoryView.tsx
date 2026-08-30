@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Modal } from '../components/layout/Modal.js';
+import { ConfirmDialog } from '../components/common/ConfirmDialog.js';
 import type { User, Department } from '../types/index.js';
 
 export const DirectoryView: React.FC = () => {
@@ -118,15 +119,20 @@ export const DirectoryView: React.FC = () => {
     }
   };
 
-  const handleDeleteUser = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove ${name} from the university directory?`)) return;
+  // Confirm Delete User State
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<{ id: string; name: string } | null>(null);
+
+  const executeDeleteUser = async () => {
+    if (!confirmDeleteUser) return;
     setFeedback(null);
     try {
-      await api.deleteUser(id);
-      setFeedback({ type: 'success', message: `User ${name} removed.` });
+      await api.deleteUser(confirmDeleteUser.id);
+      setFeedback({ type: 'success', message: `User ${confirmDeleteUser.name} removed from directory.` });
+      setConfirmDeleteUser(null);
       fetchUsersAndDepts();
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to remove user.' });
+      setConfirmDeleteUser(null);
     }
   };
 
@@ -387,7 +393,7 @@ export const DirectoryView: React.FC = () => {
                           <button
                             className="btn btn-danger"
                             style={{ padding: '5px 10px', fontSize: '11px' }}
-                            onClick={() => handleDeleteUser(u.id, u.fullName || (u as any).full_name || 'User')}
+                            onClick={() => setConfirmDeleteUser({ id: u.id, name: u.fullName || (u as any).full_name || 'User' })}
                             title="Delete User"
                           >
                             <Trash2 size={12} />
@@ -528,6 +534,20 @@ export const DirectoryView: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* CONFIRM DELETE USER DIALOG */}
+      {confirmDeleteUser && (
+        <ConfirmDialog
+          isOpen={Boolean(confirmDeleteUser)}
+          title={`Remove ${confirmDeleteUser.name}?`}
+          message={`Are you sure you want to remove "${confirmDeleteUser.name}" from the university directory? Their account credentials, timetable memberships, and historical logs will be removed.`}
+          confirmText="Yes, Remove Member"
+          cancelText="Cancel"
+          isDestructive={true}
+          onConfirm={executeDeleteUser}
+          onCancel={() => setConfirmDeleteUser(null)}
+        />
+      )}
     </div>
   );
 };

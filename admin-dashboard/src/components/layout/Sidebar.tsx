@@ -2,7 +2,6 @@ import React from 'react';
 import {
   LayoutDashboard,
   Users2,
-  GraduationCap,
   Users,
   Building2,
   CalendarDays,
@@ -15,7 +14,6 @@ import { useAuth } from '../../context/AuthContext.js';
 export type NavView =
   | 'dashboard'
   | 'directory'
-  | 'classes'
   | 'batches'
   | 'departments'
   | 'templates'
@@ -77,17 +75,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         </button>
 
         <div className="nav-section-title">ACADEMIC COHORTS</div>
-
-        <button
-          className={`nav-item ${currentView === 'classes' ? 'active' : ''}`}
-          onClick={() => onNavigate('classes')}
-        >
-          <div className="nav-item-content">
-            <GraduationCap size={17} />
-            <span>Departmental Classes</span>
-          </div>
-          {currentView === 'classes' && <ChevronRight size={14} />}
-        </button>
 
         <button
           className={`nav-item ${currentView === 'batches' ? 'active' : ''}`}

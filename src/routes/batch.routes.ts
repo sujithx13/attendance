@@ -8,6 +8,7 @@ const router = Router();
 
 // List all batches (filtered by dept or prof)
 router.get('/', authenticateToken, BatchController.list);
+router.get('/my', authenticateToken, BatchController.getMyBatches);
 
 // Get batch details with member list
 router.get('/:id', authenticateToken, BatchController.getById);

@@ -1,5 +1,20 @@
 /** Typed client for the user-supplied KAHE attendance service. Tokens are passed in memory by the app and never persisted here. */
-export const API_BASE_URL = "https://witnesses-gaps-liable-vary.trycloudflare.com/api/v1";
+export let API_BASE_URL = "http://192.168.1.34:4000/api/v1";
+
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
+
+export function setCustomApiBaseUrl(url: string) {
+  let cleanUrl = url.trim();
+  if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+    cleanUrl = `http://${cleanUrl}`;
+  }
+  if (!cleanUrl.endsWith("/api/v1")) {
+    cleanUrl = cleanUrl.replace(/\/+$/, "") + "/api/v1";
+  }
+  API_BASE_URL = cleanUrl;
+}
 
 export type ApiUser = { id: string; fullName: string; role: string };
 export type AuthSession = { token: string; user: ApiUser };
@@ -95,5 +110,51 @@ export function submitProfessorScan(token: string, sessionId: string, studentQrP
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify({ sessionId, studentQrPayload })
+  });
+}
+
+export type MobileBatch = {
+  id: string;
+  name: string;
+  code: string;
+  allowCrossDepartment: boolean;
+  allowMultipleYears: boolean;
+  allowedYears?: number[];
+  description?: string;
+  memberCount?: number;
+};
+
+export type MobileTimetableSlot = {
+  id: string;
+  scheduleType: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  targetType: string;
+  batchId?: string;
+  batchCode?: string;
+  batchName?: string;
+  courseId?: string;
+  courseCode?: string;
+  courseName?: string;
+  professorId: string;
+  professorName?: string;
+  classroomId: string;
+  classroomName?: string;
+};
+
+export function getMyBatches(token: string) {
+  return request<{ batches: MobileBatch[] }>("/batches/my", { headers: authHeaders(token) });
+}
+
+export function getMyTimetable(token: string) {
+  return request<{ slots: MobileTimetableSlot[] }>("/timetable/my", { headers: authHeaders(token) });
+}
+
+export function launchSlotSession(token: string, slotId?: string, batchId?: string) {
+  return request<{ message: string; sessionId: string; status: string }>("/sessions/launch-slot", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ slotId, batchId })
   });
 }

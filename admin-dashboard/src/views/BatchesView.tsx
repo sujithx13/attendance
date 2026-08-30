@@ -14,22 +14,55 @@ import {
   GraduationCap,
   Calendar,
   Bell,
-  ShieldCheck
+  ShieldCheck,
+  MapPin,
+  Copy,
+  CalendarPlus
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Modal } from '../components/layout/Modal.js';
-import type { Batch, BatchMember, Department, User, TimetableSlot, Announcement } from '../types/index.js';
+import { ConfirmDialog } from '../components/common/ConfirmDialog.js';
+import type { Batch, BatchMember, User, TimetableSlot, TimetableTemplate, Announcement } from '../types/index.js';
+
+// 12-hour AM/PM helper
+function formatToAmPm(timeStr: string): string {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1] || '00';
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+}
 
 export const BatchesView: React.FC = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [professors, setProfessors] = useState<User[]>([]);
   const [allStudents, setAllStudents] = useState<User[]>([]);
+  const [classrooms, setClassrooms] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<TimetableTemplate[]>([]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
-  const [deptFilter, setDeptFilter] = useState('ALL');
   const [policyFilter, setPolicyFilter] = useState<'ALL' | 'CROSS_DEPT' | 'SINGLE_DEPT'>('ALL');
+
+  // Confirmation Popups State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    isDestructive: false,
+    onConfirm: () => {}
+  });
 
   // Create / Edit Batch Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,11 +70,9 @@ export const BatchesView: React.FC = () => {
   const [targetBatchId, setTargetBatchId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [professorId, setProfessorId] = useState('');
-  const [allowCrossDept, setAllowCrossDept] = useState(false);
-  const [allowMultiYears, setAllowMultiYears] = useState(false);
-  const [selectedYears, setSelectedYears] = useState<number[]>([2]);
+  const [allowCrossDept, setAllowCrossDept] = useState(true);
+  const [allowMultiYears, setAllowMultiYears] = useState(true);
+  const [selectedYears, setSelectedYears] = useState<number[]>([2, 3]);
   const [description, setDescription] = useState('');
 
   // Selected Cohort Hub State
@@ -54,10 +85,23 @@ export const BatchesView: React.FC = () => {
 
   // Add Faculty Form State
   const [facultyToAdd, setFacultyToAdd] = useState('');
-  const [facultyRole, setFacultyRole] = useState('CO_INSTRUCTOR');
 
   // Add Student Form State
   const [studentIdToEnroll, setStudentIdToEnroll] = useState('');
+
+  // Modifiable Batch Timetable Slot Modal State (Add & Edit)
+  const [isAddSlotOpen, setIsAddSlotOpen] = useState(false);
+  const [isEditingSlot, setIsEditingSlot] = useState(false);
+  const [targetSlotId, setTargetSlotId] = useState<string | null>(null);
+  const [slotDay, setSlotDay] = useState(1);
+  const [slotStart, setSlotStart] = useState('09:00');
+  const [slotEnd, setSlotEnd] = useState('10:30');
+  const [slotProfId, setSlotProfId] = useState('');
+  const [slotRoomId, setSlotRoomId] = useState('');
+
+  // Apply Template Modal State
+  const [isApplyTemplateOpen, setIsApplyTemplateOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
   // Announcement Form State
   const [annTitle, setAnnTitle] = useState('');
@@ -68,28 +112,33 @@ export const BatchesView: React.FC = () => {
 
   const fetchBatchesAndMeta = async () => {
     try {
-      const [batchRes, deptRes, profRes, studentRes] = await Promise.all([
+      const [batchRes, profRes, studentRes, roomRes, tmplRes] = await Promise.all([
         api.getBatches(),
-        api.getDepartments(),
         api.getUsers({ role: 'PROFESSOR' }),
-        api.getUsers({ role: 'STUDENT' })
+        api.getUsers({ role: 'STUDENT' }),
+        api.getClassrooms(),
+        api.getTemplates()
       ]);
       setBatches(batchRes.batches || []);
-      setDepartments(deptRes.departments || []);
       setProfessors(profRes.users || []);
       setAllStudents(studentRes.users || []);
+      setClassrooms(roomRes.classrooms || []);
+      setTemplates(tmplRes.templates || []);
 
-      if (deptRes.departments?.length > 0 && !departmentId) {
-        setDepartmentId(deptRes.departments[0].id);
-      }
-      if (profRes.users?.length > 0 && !professorId) {
-        setProfessorId(profRes.users[0].id);
-      }
       if (profRes.users?.length > 0 && !facultyToAdd) {
         setFacultyToAdd(profRes.users[0].id);
       }
+      if (profRes.users?.length > 0 && !slotProfId) {
+        setSlotProfId(profRes.users[0].id);
+      }
       if (studentRes.users?.length > 0 && !studentIdToEnroll) {
         setStudentIdToEnroll(studentRes.users[0].id);
+      }
+      if (roomRes.classrooms?.length > 0 && !slotRoomId) {
+        setSlotRoomId(roomRes.classrooms[0].id);
+      }
+      if (tmplRes.templates?.length > 0 && !selectedTemplateId) {
+        setSelectedTemplateId(tmplRes.templates[0].id);
       }
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to load batches.' });
@@ -108,9 +157,7 @@ export const BatchesView: React.FC = () => {
     setAllowCrossDept(true);
     setAllowMultiYears(true);
     setSelectedYears([2, 3]);
-    setDescription('Specialized multi-disciplinary cohort focused on applied engineering research, cross-department collaborative projects, and industry laboratory practicums.');
-    if (departments.length > 0) setDepartmentId(departments[0].id);
-    if (professors.length > 0) setProfessorId(professors[0].id);
+    setDescription('Cross-departmental and multi-year collaborative batch.');
     setIsModalOpen(true);
   };
 
@@ -119,8 +166,6 @@ export const BatchesView: React.FC = () => {
     setTargetBatchId(b.id);
     setName(b.name);
     setCode(b.code);
-    setDepartmentId(b.departmentId || (b as any).department_id || (departments[0]?.id ?? ''));
-    setProfessorId(b.professorId || (b as any).professor_id || (professors[0]?.id ?? ''));
     setAllowCrossDept(Boolean(b.allowCrossDepartment ?? (b as any).allow_cross_department));
     setAllowMultiYears(Boolean(b.allowMultipleYears ?? (b as any).allow_multiple_years));
     const yrs = b.allowedYears || (b as any).allowed_years;
@@ -137,8 +182,8 @@ export const BatchesView: React.FC = () => {
         await api.updateBatch(targetBatchId, {
           name,
           code,
-          departmentId: departmentId || null,
-          professorId,
+          departmentId: undefined,
+          professorId: undefined,
           allowCrossDepartment: allowCrossDept,
           allowMultipleYears: allowMultiYears,
           allowedYears: selectedYears,
@@ -150,8 +195,6 @@ export const BatchesView: React.FC = () => {
             ...selectedBatch,
             name,
             code,
-            departmentId,
-            professorId,
             allowCrossDepartment: allowCrossDept,
             allowMultipleYears: allowMultiYears,
             allowedYears: selectedYears,
@@ -162,8 +205,8 @@ export const BatchesView: React.FC = () => {
         await api.createBatch({
           name,
           code,
-          departmentId: departmentId || null,
-          professorId,
+          departmentId: undefined,
+          professorId: undefined,
           allowCrossDepartment: allowCrossDept,
           allowMultipleYears: allowMultiYears,
           allowedYears: selectedYears,
@@ -179,16 +222,25 @@ export const BatchesView: React.FC = () => {
     }
   };
 
-  const handleDeleteBatch = async (id: string, code: string) => {
-    if (!confirm(`Are you sure you want to delete batch ${code}? All roster enrollments will be deleted.`)) return;
-    try {
-      await api.deleteBatch(id);
-      setFeedback({ type: 'success', message: `Batch ${code} deleted.` });
-      if (selectedBatch?.id === id) setSelectedBatch(null);
-      fetchBatchesAndMeta();
-    } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to delete batch.' });
-    }
+  const promptDeleteBatch = (id: string, code: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: `Delete Batch ${code}?`,
+      message: `Are you sure you want to delete batch "${code}"? All assigned weekly timetable slots and student enrollments for this batch will be removed.`,
+      confirmText: 'Yes, Delete Batch',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await api.deleteBatch(id);
+          setFeedback({ type: 'success', message: `Batch ${code} deleted.` });
+          if (selectedBatch?.id === id) setSelectedBatch(null);
+          fetchBatchesAndMeta();
+        } catch (err: any) {
+          setFeedback({ type: 'error', message: err.message || 'Failed to delete batch.' });
+        }
+      }
+    });
   };
 
   const handleSelectCohort = async (batch: Batch) => {
@@ -211,35 +263,43 @@ export const BatchesView: React.FC = () => {
     }
   };
 
-  // TEACHER / FACULTY ACTIONS
+  // FACULTY ACTIONS
   const handleAddProfessor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBatch || !facultyToAdd) return;
     setFeedback(null);
     try {
-      await api.addProfessorToBatch(selectedBatch.id, facultyToAdd, facultyRole);
-      setFeedback({ type: 'success', message: 'Faculty member assigned to batch leadership team!' });
+      await api.addProfessorToBatch(selectedBatch.id, facultyToAdd, 'FACULTY');
+      setFeedback({ type: 'success', message: 'Faculty member added to batch!' });
       const res = await api.getBatchProfessors(selectedBatch.id);
       setBatchFaculty(res.professors || []);
       fetchBatchesAndMeta();
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to assign faculty member.' });
+      setFeedback({ type: 'error', message: err.message || 'Failed to add faculty member.' });
     }
   };
 
-  const handleRemoveProfessor = async (profId: string, profName: string) => {
+  const promptRemoveProfessor = (profId: string, profName: string) => {
     if (!selectedBatch) return;
-    if (!confirm(`Remove ${profName} from this batch's faculty team?`)) return;
-    setFeedback(null);
-    try {
-      await api.removeProfessorFromBatch(selectedBatch.id, profId);
-      setFeedback({ type: 'success', message: `Removed ${profName} from batch faculty.` });
-      const res = await api.getBatchProfessors(selectedBatch.id);
-      setBatchFaculty(res.professors || []);
-      fetchBatchesAndMeta();
-    } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to remove faculty member.' });
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: `Remove Faculty Member?`,
+      message: `Remove ${profName} from the faculty team of batch "${selectedBatch.name}"?`,
+      confirmText: 'Remove Faculty',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await api.removeProfessorFromBatch(selectedBatch.id, profId);
+          setFeedback({ type: 'success', message: `Removed ${profName} from batch faculty.` });
+          const res = await api.getBatchProfessors(selectedBatch.id);
+          setBatchFaculty(res.professors || []);
+          fetchBatchesAndMeta();
+        } catch (err: any) {
+          setFeedback({ type: 'error', message: err.message || 'Failed to remove faculty member.' });
+        }
+      }
+    });
   };
 
   // STUDENT ACTIONS
@@ -258,17 +318,121 @@ export const BatchesView: React.FC = () => {
     }
   };
 
-  const handleRemoveStudent = async (studentId: string, studentName: string) => {
+  const promptRemoveStudent = (studentId: string, studentName: string) => {
     if (!selectedBatch) return;
-    if (!confirm(`Remove ${studentName} from this batch?`)) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: `Remove Student from Batch?`,
+      message: `Remove ${studentName} from the student roster of batch "${selectedBatch.name}"?`,
+      confirmText: 'Remove Student',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await api.removeStudentFromBatch(selectedBatch.id, studentId);
+          setFeedback({ type: 'success', message: `Removed ${studentName} from batch.` });
+          const res = await api.getBatchMembers(selectedBatch.id);
+          setMembers(res.members || []);
+          fetchBatchesAndMeta();
+        } catch (err: any) {
+          setFeedback({ type: 'error', message: err.message || 'Failed to remove student.' });
+        }
+      }
+    });
+  };
+
+  // TIMETABLE ACTIONS FOR BATCH (ADD / EDIT / DELETE)
+  const handleOpenAddSlot = () => {
+    setIsEditingSlot(false);
+    setTargetSlotId(null);
+    setSlotDay(1);
+    setSlotStart('09:00');
+    setSlotEnd('10:30');
+    if (professors.length > 0) setSlotProfId(professors[0].id);
+    if (classrooms.length > 0) setSlotRoomId(classrooms[0].id);
+    setIsAddSlotOpen(true);
+  };
+
+  const handleOpenEditSlot = (slot: TimetableSlot) => {
+    setIsEditingSlot(true);
+    setTargetSlotId(slot.id);
+    setSlotDay(slot.dayOfWeek ?? 1);
+    setSlotStart(slot.startTime.slice(0, 5));
+    setSlotEnd(slot.endTime.slice(0, 5));
+    setSlotProfId(slot.professorId || professors[0]?.id || '');
+    setSlotRoomId(slot.classroomId || classrooms[0]?.id || '');
+    setIsAddSlotOpen(true);
+  };
+
+  const handleSaveBatchSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBatch) return;
+    setFeedback(null);
     try {
-      await api.removeStudentFromBatch(selectedBatch.id, studentId);
-      setFeedback({ type: 'success', message: `Removed ${studentName} from batch.` });
-      const res = await api.getBatchMembers(selectedBatch.id);
-      setMembers(res.members || []);
-      fetchBatchesAndMeta();
+      if (isEditingSlot && targetSlotId) {
+        await api.updateTimetableSlot(targetSlotId, {
+          dayOfWeek: slotDay,
+          startTime: slotStart,
+          endTime: slotEnd,
+          batchId: selectedBatch.id,
+          professorId: slotProfId || professors[0]?.id,
+          classroomId: slotRoomId || classrooms[0]?.id
+        });
+        setFeedback({ type: 'success', message: 'Timetable slot updated successfully!' });
+      } else {
+        await api.createTimetableSlot({
+          scheduleType: 'RECURRING_WEEKLY',
+          dayOfWeek: slotDay,
+          startTime: slotStart,
+          endTime: slotEnd,
+          targetType: 'BATCH',
+          batchId: selectedBatch.id,
+          professorId: slotProfId || professors[0]?.id,
+          classroomId: slotRoomId || classrooms[0]?.id
+        });
+        setFeedback({ type: 'success', message: 'New schedule slot scheduled for batch!' });
+      }
+      setIsAddSlotOpen(false);
+      const slotsRes = await api.getTimetableSlots({ batchId: selectedBatch.id });
+      setTimetable(slotsRes.slots || []);
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to remove student.' });
+      setFeedback({ type: 'error', message: err.message || 'Failed to save timetable slot.' });
+    }
+  };
+
+  const promptDeleteBatchSlot = (slotId: string) => {
+    if (!selectedBatch) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Timetable Slot?',
+      message: 'Are you sure you want to remove this recurring schedule slot from the batch timetable?',
+      confirmText: 'Remove Slot',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await api.deleteTimetableSlot(slotId);
+          setFeedback({ type: 'success', message: 'Schedule slot removed.' });
+          const slotsRes = await api.getTimetableSlots({ batchId: selectedBatch.id });
+          setTimetable(slotsRes.slots || []);
+        } catch (err: any) {
+          setFeedback({ type: 'error', message: err.message || 'Failed to remove slot.' });
+        }
+      }
+    });
+  };
+
+  const handleApplyTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBatch || !selectedTemplateId) return;
+    try {
+      const res = await api.applyTemplateToCohort(selectedTemplateId, 'BATCH', selectedBatch.id);
+      setFeedback({ type: 'success', message: `Template applied! Scheduled ${res.appliedCount} recurring weekly slots.` });
+      setIsApplyTemplateOpen(false);
+      const slotsRes = await api.getTimetableSlots({ batchId: selectedBatch.id });
+      setTimetable(slotsRes.slots || []);
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to apply template.' });
     }
   };
 
@@ -306,7 +470,6 @@ export const BatchesView: React.FC = () => {
   // Filtered Batches
   const filteredBatches = useMemo(() => {
     return batches.filter((b) => {
-      if (deptFilter !== 'ALL' && (b.departmentId || (b as any).department_id) !== deptFilter) return false;
       if (policyFilter === 'CROSS_DEPT' && !b.allowCrossDepartment && !(b as any).allow_cross_department) return false;
       if (policyFilter === 'SINGLE_DEPT' && (b.allowCrossDepartment || (b as any).allow_cross_department)) return false;
       if (searchQuery.trim()) {
@@ -317,16 +480,18 @@ export const BatchesView: React.FC = () => {
       }
       return true;
     });
-  }, [batches, deptFilter, policyFilter, searchQuery]);
+  }, [batches, policyFilter, searchQuery]);
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Flexible Batches & Interdisciplinary Cohorts</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Academic Batches & Cohorts</h2>
           <p style={{ fontSize: '14px', color: 'var(--secondary)', marginTop: '4px' }}>
-            Multi-departmental and multi-year cohorts with multi-faculty leadership and student roster administration.
+            Flexible cohorts with faculty assignments, student enrollments, and editable weekly timetables.
           </p>
         </div>
 
@@ -369,31 +534,14 @@ export const BatchesView: React.FC = () => {
             className={`tab-pill ${policyFilter === 'CROSS_DEPT' ? 'active' : ''}`}
             onClick={() => setPolicyFilter('CROSS_DEPT')}
           >
-            Cross-Departmental Only
+            Cross-Departmental
           </button>
           <button
             className={`tab-pill ${policyFilter === 'SINGLE_DEPT' ? 'active' : ''}`}
             onClick={() => setPolicyFilter('SINGLE_DEPT')}
           >
-            Department-Restricted
+            Single-Department Only
           </button>
-        </div>
-
-        <div className="filter-group">
-          <span className="form-label" style={{ marginBottom: 0 }}>HOST DEPT:</span>
-          <select
-            className="form-select"
-            style={{ width: 'auto', padding: '6px 12px', fontSize: '13px' }}
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-          >
-            <option value="ALL">All Departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.code} — {d.name}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div style={{ position: 'relative', minWidth: '240px' }}>
@@ -410,120 +558,123 @@ export const BatchesView: React.FC = () => {
       </div>
 
       {/* Batches Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '24px' }}>
-        {filteredBatches.map((b) => {
-          const isCrossDept = Boolean(b.allowCrossDepartment ?? (b as any).allow_cross_department);
-          const isMultiYr = Boolean(b.allowMultipleYears ?? (b as any).allow_multiple_years);
-          const yrs = b.allowedYears || (b as any).allowed_years || [2];
-          const deptCode = b.departmentCode || (b as any).department_code || 'General';
-          const profName = b.professorName || (b as any).professor_name || 'Prof. Alan Turing';
-          const memberCount = b.memberCount || (b as any).member_count || 0;
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px' }}>
+        {filteredBatches.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', padding: '48px', textAlign: 'center', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-md)', border: '1px solid var(--outline)' }}>
+            <Users size={36} color="var(--secondary)" style={{ margin: '0 auto 12px auto' }} />
+            <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--on-surface)' }}>No Batches Created Yet</h4>
+            <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
+              Click <strong>"Create New Batch"</strong> above to set up an academic cohort.
+            </p>
+          </div>
+        ) : (
+          filteredBatches.map((b) => {
+            const isCrossDept = Boolean(b.allowCrossDepartment ?? (b as any).allow_cross_department);
+            const isMultiYr = Boolean(b.allowMultipleYears ?? (b as any).allow_multiple_years);
+            const yrs = b.allowedYears || (b as any).allowed_years || [2];
+            const memberCount = b.memberCount || (b as any).member_count || 0;
 
-          return (
-            <div
-              key={b.id}
-              className="card"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                borderColor: selectedBatch?.id === b.id ? 'var(--primary-container)' : 'var(--outline)'
-              }}
-              onClick={() => handleSelectCohort(b)}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <div>
-                    <span className="badge badge-purple" style={{ marginBottom: '6px' }}>
-                      {b.code}
-                    </span>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--on-surface)' }}>{b.name}</h3>
-                  </div>
-                  <span className="badge badge-emerald">
-                    <Users size={12} />
-                    <span>{memberCount} Students</span>
-                  </span>
-                </div>
-
-                <p style={{ fontSize: '13px', color: 'var(--secondary)', marginBottom: '16px', lineHeight: '1.4', minHeight: '36px' }}>
-                  {b.description?.slice(0, 110) || 'Specialized university cohort.'}…
-                </p>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    padding: '14px',
-                    backgroundColor: 'var(--surface-container-low)',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--outline)',
-                    marginBottom: '16px',
-                    fontSize: '12.5px'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--secondary)' }}>Admission Scope:</span>
-                    {isCrossDept ? (
-                      <span className="badge badge-emerald">Cross-Departmental</span>
-                    ) : (
-                      <span className="badge badge-blue">{deptCode} Only</span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--secondary)' }}>Year Policy:</span>
-                    <span className="badge badge-amber">
-                      {isMultiYr ? `Years ${yrs.join(', ')}` : `Year ${yrs[0]} Only`}
+            return (
+              <div
+                key={b.id}
+                className="card"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  borderColor: selectedBatch?.id === b.id ? 'var(--primary-container)' : 'var(--outline)'
+                }}
+                onClick={() => handleSelectCohort(b)}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div>
+                      <span className="badge badge-purple" style={{ marginBottom: '6px' }}>
+                        {b.code}
+                      </span>
+                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--on-surface)' }}>{b.name}</h3>
+                    </div>
+                    <span className="badge badge-emerald">
+                      <Users size={12} />
+                      <span>{memberCount} Students</span>
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--secondary)' }}>Lead Faculty:</span>
-                    <strong>{profName}</strong>
+                  <p style={{ fontSize: '13px', color: 'var(--secondary)', marginBottom: '16px', lineHeight: '1.4', minHeight: '36px' }}>
+                    {b.description?.slice(0, 110) || 'Academic batch cohort.'}
+                  </p>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      padding: '14px',
+                      backgroundColor: 'var(--surface-container-low)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--outline)',
+                      marginBottom: '16px',
+                      fontSize: '12.5px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--secondary)' }}>Admission Policy:</span>
+                      {isCrossDept ? (
+                        <span className="badge badge-emerald">Cross-Departmental</span>
+                      ) : (
+                        <span className="badge badge-blue">Single Department</span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--secondary)' }}>Year Policy:</span>
+                      <span className="badge badge-amber">
+                        {isMultiYr ? `Years ${yrs.join(', ')}` : `Year ${yrs[0]} Only`}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--outline)' }}>
-                <button
-                  className="btn btn-secondary"
-                  style={{ flex: 1, fontSize: '12.5px', padding: '8px 12px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelectCohort(b);
-                  }}
-                >
-                  <BookOpen size={14} />
-                  <span>Open Cohort Hub</span>
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  style={{ padding: '8px 12px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenEdit(b);
-                  }}
-                  title="Edit Batch"
-                >
-                  <Edit2 size={13} />
-                </button>
-                <button
-                  className="btn btn-danger"
-                  style={{ padding: '8px 12px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteBatch(b.id, b.code);
-                  }}
-                  title="Delete Batch"
-                >
-                  <Trash2 size={13} />
-                </button>
+                <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--outline)' }}>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ flex: 1, fontSize: '12.5px', padding: '8px 12px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectCohort(b);
+                    }}
+                  >
+                    <BookOpen size={14} />
+                    <span>Open Cohort Hub</span>
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 12px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEdit(b);
+                    }}
+                    title="Edit Batch"
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    style={{ padding: '8px 12px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      promptDeleteBatch(b.id, b.code);
+                    }}
+                    title="Delete Batch"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Cohort Detail Hub Modal */}
@@ -532,7 +683,7 @@ export const BatchesView: React.FC = () => {
           isOpen={Boolean(selectedBatch)}
           onClose={() => setSelectedBatch(null)}
           title={`Batch Cohort Hub: ${selectedBatch.name} (${selectedBatch.code})`}
-          maxWidth="880px"
+          maxWidth="920px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Header Banner */}
@@ -553,7 +704,7 @@ export const BatchesView: React.FC = () => {
                   {selectedBatch.allowCrossDepartment ? (
                     <span className="badge badge-emerald">Cross-Departmental</span>
                   ) : (
-                    <span className="badge badge-blue">{selectedBatch.departmentCode || 'Host Dept'}</span>
+                    <span className="badge badge-blue">Single Department</span>
                   )}
                   <span className="badge badge-amber">
                     Years [{(selectedBatch.allowedYears || (selectedBatch as any).allowed_years)?.join(', ')}]
@@ -564,7 +715,7 @@ export const BatchesView: React.FC = () => {
                 </div>
                 <h3 style={{ fontSize: '20px', fontWeight: 800 }}>{selectedBatch.name}</h3>
                 <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
-                  {selectedBatch.description || 'Specialized university batch.'}
+                  {selectedBatch.description || 'Academic batch cohort.'}
                 </p>
               </div>
 
@@ -585,14 +736,14 @@ export const BatchesView: React.FC = () => {
                 onClick={() => setActiveTab('overview')}
               >
                 <ShieldCheck size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Policy & Governance
+                Policy & Rules
               </button>
               <button
                 className={`tab-pill ${activeTab === 'staff' ? 'active' : ''}`}
                 onClick={() => setActiveTab('staff')}
               >
                 <GraduationCap size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Faculty Leadership Team ({batchFaculty.length})
+                Faculty Leadership ({batchFaculty.length})
               </button>
               <button
                 className={`tab-pill ${activeTab === 'roster' ? 'active' : ''}`}
@@ -622,11 +773,11 @@ export const BatchesView: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="card" style={{ padding: '18px' }}>
-                    <h5 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>Department Affiliation Rule</h5>
+                    <h5 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>Department Admission Scope</h5>
                     <p style={{ fontSize: '13px', color: 'var(--secondary)', lineHeight: '1.5' }}>
                       {selectedBatch.allowCrossDepartment
-                        ? 'Students from any department (CSE, IT, MECH, ECE, AERO) are eligible to enroll.'
-                        : `Restricted strictly to majors from the ${selectedBatch.departmentCode || 'host'} department.`}
+                        ? 'Students from any department are eligible to enroll.'
+                        : 'Restricted strictly to students from the designated department.'}
                     </p>
                   </div>
 
@@ -642,15 +793,14 @@ export const BatchesView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 2: FACULTY TEAM (ADD / REMOVE TEACHERS) */}
+            {/* TAB 2: FACULTY TEAM */}
             {activeTab === 'staff' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* Add Faculty Form */}
                 <form
                   onSubmit={handleAddProfessor}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 180px auto',
+                    gridTemplateColumns: '1fr auto',
                     gap: '12px',
                     alignItems: 'flex-end',
                     padding: '16px',
@@ -660,7 +810,7 @@ export const BatchesView: React.FC = () => {
                   }}
                 >
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">ASSIGN PROFESSOR / TEACHER TO BATCH</label>
+                    <label className="form-label">SELECT FACULTY MEMBER TO ADD</label>
                     <select
                       className="form-select"
                       value={facultyToAdd}
@@ -674,32 +824,17 @@ export const BatchesView: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">ASSIGNMENT ROLE</label>
-                    <select
-                      className="form-select"
-                      value={facultyRole}
-                      onChange={(e) => setFacultyRole(e.target.value)}
-                    >
-                      <option value="LEAD_MENTOR">Lead Mentor</option>
-                      <option value="CO_INSTRUCTOR">Co-Instructor</option>
-                      <option value="LAB_COORDINATOR">Lab Coordinator</option>
-                      <option value="PROJECT_ADVISOR">Project Advisor</option>
-                    </select>
-                  </div>
-
                   <button type="submit" className="btn btn-primary" style={{ height: '38px' }}>
                     <UserPlus size={14} />
-                    <span>Assign Teacher</span>
+                    <span>Add Faculty</span>
                   </button>
                 </form>
 
-                {/* Faculty List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <span className="form-label">ASSIGNED FACULTY MENTORS & INSTRUCTORS ({batchFaculty.length})</span>
+                  <span className="form-label">ASSIGNED FACULTY ({batchFaculty.length})</span>
                   {batchFaculty.length === 0 ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: 'var(--secondary)', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-sm)' }}>
-                      No faculty members assigned to this batch yet. Use the form above to assign teachers.
+                      No faculty members assigned to this batch yet.
                     </div>
                   ) : (
                     batchFaculty.map((f) => (
@@ -718,8 +853,8 @@ export const BatchesView: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                           <div
                             style={{
-                              width: '42px',
-                              height: '42px',
+                              width: '40px',
+                              height: '40px',
                               borderRadius: '50%',
                               backgroundColor: 'var(--primary-soft)',
                               color: 'var(--primary-container)',
@@ -734,14 +869,9 @@ export const BatchesView: React.FC = () => {
                             {(f.professorName || 'P').charAt(0)}
                           </div>
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <strong style={{ fontSize: '14px' }}>{f.professorName}</strong>
-                              <span className={`badge ${f.role === 'LEAD_MENTOR' ? 'badge-emerald' : 'badge-blue'}`}>
-                                {f.role ? f.role.replace(/_/g, ' ') : 'Instructor'}
-                              </span>
-                            </div>
+                            <strong style={{ fontSize: '14px' }}>{f.professorName}</strong>
                             <div style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '2px' }}>
-                              {f.email} • Department of {f.departmentName || f.departmentCode || 'Computer Science'}
+                              {f.email}
                             </div>
                           </div>
                         </div>
@@ -750,11 +880,11 @@ export const BatchesView: React.FC = () => {
                           type="button"
                           className="btn btn-danger"
                           style={{ padding: '6px 12px', fontSize: '12px' }}
-                          onClick={() => handleRemoveProfessor(f.professorId, f.professorName)}
-                          title="Remove from batch faculty"
+                          onClick={() => promptRemoveProfessor(f.professorId, f.professorName)}
+                          title="Remove faculty from batch"
                         >
                           <Trash2 size={13} />
-                          <span>Remove Teacher</span>
+                          <span>Remove</span>
                         </button>
                       </div>
                     ))
@@ -763,10 +893,9 @@ export const BatchesView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 3: STUDENT ROSTER (ADD / REMOVE STUDENTS) */}
+            {/* TAB 3: STUDENT ROSTER */}
             {activeTab === 'roster' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                {/* Dynamic Add Student Form */}
                 <form
                   onSubmit={handleEnrollStudent}
                   style={{
@@ -800,7 +929,6 @@ export const BatchesView: React.FC = () => {
                   </button>
                 </form>
 
-                {/* Enrolled Students Table */}
                 <div className="table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                   <table className="data-table">
                     <thead>
@@ -827,13 +955,13 @@ export const BatchesView: React.FC = () => {
                               <div>{m.email || '—'}</div>
                               <code style={{ fontSize: '11px', color: 'var(--secondary)' }}>{m.enrollmentId || '—'}</code>
                             </td>
-                            <td><span className="badge badge-purple">{m.departmentCode || 'CSE'}</span></td>
+                            <td><span className="badge badge-purple">{m.departmentCode || 'General'}</span></td>
                             <td><span className="badge badge-emerald">Year {m.yearOfStudy || 1}</span></td>
                             <td style={{ textAlign: 'right' }}>
                               <button
                                 className="btn btn-danger"
                                 style={{ padding: '6px 12px', fontSize: '12px' }}
-                                onClick={() => handleRemoveStudent(m.studentId, m.studentName || 'this student')}
+                                onClick={() => promptRemoveStudent(m.studentId, m.studentName || 'this student')}
                                 title="Remove student from batch"
                               >
                                 <Trash2 size={12} />
@@ -849,41 +977,97 @@ export const BatchesView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 4: TIMETABLE */}
+            {/* TAB 4: EDITABLE COHORT TIMETABLE */}
             {activeTab === 'timetable' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <span className="form-label">ASSIGNED SCHEDULE SLOTS FOR THIS BATCH</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <span className="form-label" style={{ marginBottom: 0 }}>
+                    SCHEDULED WEEKLY TIMETABLE SLOTS ({timetable.length})
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ fontSize: '12.5px', padding: '6px 12px' }}
+                      onClick={() => setIsApplyTemplateOpen(true)}
+                    >
+                      <Copy size={13} />
+                      <span>Apply Saved Template</span>
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      style={{ fontSize: '12.5px', padding: '6px 12px' }}
+                      onClick={handleOpenAddSlot}
+                    >
+                      <CalendarPlus size={13} />
+                      <span>Add Schedule Slot</span>
+                    </button>
+                  </div>
+                </div>
+
                 {timetable.length === 0 ? (
-                  <div style={{ padding: '28px', textAlign: 'center', color: 'var(--secondary)', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--outline)' }}>
-                    No recurring timetable slots assigned to this batch yet. You can apply a template from the Timetable Templates tab.
+                  <div style={{ padding: '36px', textAlign: 'center', color: 'var(--secondary)', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--outline)' }}>
+                    <Calendar size={28} color="var(--secondary)" style={{ margin: '0 auto 8px auto' }} />
+                    <div style={{ fontWeight: 600, color: 'var(--on-surface)' }}>No schedule slots assigned to this batch yet.</div>
+                    <p style={{ fontSize: '12.5px', marginTop: '4px' }}>
+                      Click <strong>"Add Schedule Slot"</strong> above to schedule a class time with AM/PM formatting.
+                    </p>
                   </div>
                 ) : (
-                  timetable.map((slot) => (
-                    <div
-                      key={slot.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '14px 18px',
-                        backgroundColor: 'var(--surface-container-low)',
-                        borderRadius: 'var(--radius-sm)',
-                        borderLeft: '4px solid var(--primary-container)',
-                        border: '1px solid var(--outline)'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: 700 }}>
-                          {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][slot.dayOfWeek || 0]}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {timetable.map((slot) => (
+                      <div
+                        key={slot.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '14px 18px',
+                          backgroundColor: 'var(--surface-container-low)',
+                          borderRadius: 'var(--radius-sm)',
+                          borderLeft: '4px solid var(--primary-container)',
+                          border: '1px solid var(--outline)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <span className="badge badge-purple" style={{ minWidth: '90px', textAlign: 'center' }}>
+                            {dayNames[slot.dayOfWeek || 0]}
+                          </span>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--on-surface)' }}>
+                              <Clock size={13} style={{ display: 'inline', marginRight: '6px', color: 'var(--primary-container)' }} />
+                              {formatToAmPm(slot.startTime)} – {formatToAmPm(slot.endTime)}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span><MapPin size={11} style={{ display: 'inline', marginRight: '3px' }} />{slot.classroomName || 'Classroom'}</span>
+                              <span>• Instructor: <strong>{slot.professorName || 'Faculty'}</strong></span>
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '2px' }}>
-                          <Clock size={12} style={{ display: 'inline', marginRight: '4px' }} />
-                          {slot.startTime} – {slot.endTime} • {slot.classroomName || 'Turing Hall (Building A)'}
+
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 10px', fontSize: '12px' }}
+                            onClick={() => handleOpenEditSlot(slot)}
+                            title="Edit slot"
+                          >
+                            <Edit2 size={13} />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            style={{ padding: '6px 10px', fontSize: '12px' }}
+                            onClick={() => promptDeleteBatchSlot(slot.id)}
+                            title="Remove slot"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
                       </div>
-                      <span className="badge badge-purple">Batch Session</span>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -896,7 +1080,7 @@ export const BatchesView: React.FC = () => {
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="Batch Notice Title (e.g. Lab Demonstration Review)"
+                      placeholder="Batch Notice Title"
                       value={annTitle}
                       onChange={(e) => setAnnTitle(e.target.value)}
                       required
@@ -960,7 +1144,196 @@ export const BatchesView: React.FC = () => {
         </Modal>
       )}
 
-      {/* CREATE / EDIT BATCH MODAL */}
+      {/* CONFIRM ACTION DIALOG FOR BATCHES */}
+      {confirmDialog.isOpen && (
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText={confirmDialog.confirmText}
+          isDestructive={confirmDialog.isDestructive}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        />
+      )}
+
+      {/* ADD / EDIT SCHEDULE SLOT MODAL FOR BATCH */}
+      {selectedBatch && isAddSlotOpen && (
+        <Modal
+          isOpen={isAddSlotOpen}
+          onClose={() => setIsAddSlotOpen(false)}
+          title={isEditingSlot ? `Edit Schedule Slot: ${selectedBatch.name}` : `Add Schedule Slot: ${selectedBatch.name}`}
+        >
+          <form onSubmit={handleSaveBatchSlot}>
+            <div className="form-group">
+              <label className="form-label">DAY OF THE WEEK</label>
+              <select
+                className="form-select"
+                value={slotDay}
+                onChange={(e) => setSlotDay(parseInt(e.target.value, 10))}
+              >
+                <option value={1}>Monday</option>
+                <option value={2}>Tuesday</option>
+                <option value={3}>Wednesday</option>
+                <option value={4}>Thursday</option>
+                <option value={5}>Friday</option>
+                <option value={6}>Saturday</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label className="form-label">START TIME (24H: {slotStart} • {formatToAmPm(slotStart)})</label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={slotStart}
+                  onChange={(e) => setSlotStart(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">END TIME (24H: {slotEnd} • {formatToAmPm(slotEnd)})</label>
+                <input
+                  type="time"
+                  className="form-input"
+                  value={slotEnd}
+                  onChange={(e) => setSlotEnd(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div style={{ marginBottom: '16px' }}>
+              <span className="form-label" style={{ fontSize: '11px' }}>QUICK TIME PRESETS (AM / PM):</span>
+              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '11px', padding: '4px 8px' }}
+                  onClick={() => { setSlotStart('09:00'); setSlotEnd('10:30'); }}
+                >
+                  09:00 AM - 10:30 AM
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '11px', padding: '4px 8px' }}
+                  onClick={() => { setSlotStart('10:45'); setSlotEnd('12:15'); }}
+                >
+                  10:45 AM - 12:15 PM
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '11px', padding: '4px 8px' }}
+                  onClick={() => { setSlotStart('13:30'); setSlotEnd('15:00'); }}
+                >
+                  01:30 PM - 03:00 PM
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '11px', padding: '4px 8px' }}
+                  onClick={() => { setSlotStart('14:00'); setSlotEnd('17:00'); }}
+                >
+                  02:00 PM - 05:00 PM (Lab 3hr)
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">INSTRUCTOR / PROFESSOR</label>
+              <select
+                className="form-select"
+                value={slotProfId}
+                onChange={(e) => setSlotProfId(e.target.value)}
+              >
+                {professors.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.fullName} ({p.departmentCode || 'Dept'} • {p.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">CLASSROOM / LABORATORY</label>
+              <select
+                className="form-select"
+                value={slotRoomId}
+                onChange={(e) => setSlotRoomId(e.target.value)}
+              >
+                {classrooms.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.building || 'Main Block'} • Capacity: {c.capacity || 60})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsAddSlotOpen(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                {isEditingSlot ? 'Save Changes' : 'Add Slot to Batch'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* APPLY TEMPLATE MODAL FOR BATCH */}
+      {selectedBatch && isApplyTemplateOpen && (
+        <Modal
+          isOpen={isApplyTemplateOpen}
+          onClose={() => setIsApplyTemplateOpen(false)}
+          title={`Apply Schedule Template to ${selectedBatch.name}`}
+        >
+          <form onSubmit={handleApplyTemplate}>
+            <div className="form-group">
+              <label className="form-label">CHOOSE SAVED SCHEDULE TEMPLATE</label>
+              <select
+                className="form-select"
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+              >
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({(t.slots || []).length} slots)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '8px' }}>
+              Applying this template will automatically copy its pre-configured weekly slot schedule directly into <strong>{selectedBatch.name}</strong>.
+            </p>
+
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsApplyTemplateOpen(false)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Apply Template Now
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* CREATE / EDIT BATCH MODAL (Host Dept & Primary Faculty Removed) */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -991,36 +1364,6 @@ export const BatchesView: React.FC = () => {
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">HOST / SPONSOR DEPARTMENT</label>
-            <select
-              className="form-select"
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-            >
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.code} — {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">PRIMARY FACULTY MENTOR</label>
-            <select
-              className="form-select"
-              value={professorId}
-              onChange={(e) => setProfessorId(e.target.value)}
-            >
-              {professors.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName} ({p.email})
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Policy Flags Card */}
           <div
             style={{
@@ -1044,7 +1387,7 @@ export const BatchesView: React.FC = () => {
               <div>
                 <strong>Allow Students from Different Departments</strong>
                 <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>
-                  Permits enrollment across CSE, IT, MECH, ECE, AERO without restriction.
+                  Permits enrollment across any university department without restriction.
                 </p>
               </div>
             </label>

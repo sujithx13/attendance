@@ -21,33 +21,7 @@ export const LiveMonitorView: React.FC = () => {
       const res = await api.getSecurityViolations();
       setViolations(res.violations || []);
     } catch {
-      // Fallback sample violations if endpoint empty
-      setViolations([
-        {
-          id: 'viol_1',
-          studentId: 'usr_student_john',
-          studentName: 'John Doe (STU2026001)',
-          violationType: 'MOCK_LOCATION_DETECTED',
-          severity: 'CRITICAL',
-          createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString()
-        },
-        {
-          id: 'viol_2',
-          studentId: 'usr_student_sarah',
-          studentName: 'Sarah Connor (STU2026002)',
-          violationType: 'UNENROLLED_STUDENT',
-          severity: 'HIGH',
-          createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString()
-        },
-        {
-          id: 'viol_3',
-          studentId: 'usr_student_david',
-          studentName: 'David Miller (STU2026003)',
-          violationType: 'REPLAY_ATTACK',
-          severity: 'CRITICAL',
-          createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString()
-        }
-      ]);
+      setViolations([]);
     }
   };
 

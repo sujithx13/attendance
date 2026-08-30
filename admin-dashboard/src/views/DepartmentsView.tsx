@@ -8,16 +8,13 @@ import {
   AlertCircle,
   CheckCircle2,
   GraduationCap,
-  BookOpen,
   Bell,
-  Award,
-  FlaskConical,
-  Mail,
-  MapPin
+  Users
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Modal } from '../components/layout/Modal.js';
-import type { Department, User, Course, Announcement } from '../types/index.js';
+import { ConfirmDialog } from '../components/common/ConfirmDialog.js';
+import type { Department, User, Announcement } from '../types/index.js';
 
 export const DepartmentsView: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -29,11 +26,14 @@ export const DepartmentsView: React.FC = () => {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
 
+  // Confirm Delete Dialog State
+  const [confirmDeleteDept, setConfirmDeleteDept] = useState<Department | null>(null);
+
   // Selected Department Profile Hub
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'faculty' | 'classes' | 'facilities' | 'notices'>('overview');
+  const [activeTab, setActiveTab] = useState<'faculty' | 'students' | 'notices'>('faculty');
   const [faculty, setFaculty] = useState<User[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   // Announcement Form State
@@ -90,30 +90,32 @@ export const DepartmentsView: React.FC = () => {
     }
   };
 
-  const handleDeleteDepartment = async (id: string, code: string) => {
-    if (!confirm(`Are you sure you want to remove department ${code}?`)) return;
+  const executeDeleteDepartment = async () => {
+    if (!confirmDeleteDept) return;
     try {
-      await api.deleteDepartment(id);
-      setFeedback({ type: 'success', message: `Department ${code} deleted.` });
-      if (selectedDept?.id === id) setSelectedDept(null);
+      await api.deleteDepartment(confirmDeleteDept.id);
+      setFeedback({ type: 'success', message: `Department ${confirmDeleteDept.code} deleted successfully.` });
+      if (selectedDept?.id === confirmDeleteDept.id) setSelectedDept(null);
+      setConfirmDeleteDept(null);
       fetchDepartments();
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to delete department.' });
+      setConfirmDeleteDept(null);
     }
   };
 
   const handleSelectDept = async (dept: Department) => {
     setSelectedDept(dept);
-    setActiveTab('overview');
+    setActiveTab('faculty');
     setFeedback(null);
     try {
-      const [facRes, crsRes, annRes] = await Promise.all([
+      const [facRes, stuRes, annRes] = await Promise.all([
         api.getUsers({ role: 'PROFESSOR', departmentId: dept.id }),
-        api.getCourses(dept.id),
+        api.getUsers({ role: 'STUDENT', departmentId: dept.id }),
         api.getAnnouncements('DEPARTMENT', dept.id)
       ]);
       setFaculty(facRes.users || []);
-      setCourses(crsRes.courses || []);
+      setStudents(stuRes.users || []);
       setAnnouncements(annRes.announcements || []);
     } catch (err: any) {
       console.error('Failed to load department details', err);
@@ -146,9 +148,9 @@ export const DepartmentsView: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Academic Departments & Faculties</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Academic Departments</h2>
           <p style={{ fontSize: '14px', color: 'var(--secondary)', marginTop: '4px' }}>
-            Accredited university faculties governing core curricula, faculty directories, research laboratories, and student majors.
+            Official university faculty departments, teaching staff directories, and enrolled student rosters.
           </p>
         </div>
 
@@ -178,122 +180,101 @@ export const DepartmentsView: React.FC = () => {
       )}
 
       {/* Departments Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '24px' }}>
-        {departments.map((dept) => (
-          <div
-            key={dept.id}
-            className="card"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              borderColor: selectedDept?.id === dept.id ? 'var(--primary-container)' : 'var(--outline)'
-            }}
-            onClick={() => handleSelectDept(dept)}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <span className="badge badge-emerald" style={{ fontSize: '13px', padding: '4px 12px' }}>
-                  {dept.code}
-                </span>
-                <span className="status-pill">
-                  <span className="status-dot"></span>
-                  Accredited Faculty
-                </span>
-              </div>
-
-              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px', color: 'var(--on-surface)' }}>
-                {dept.name}
-              </h3>
-              <p style={{ fontSize: '12.5px', color: 'var(--secondary)', marginBottom: '16px' }}>
-                Governing faculty body for undergraduate & postgraduate curricula.
-              </p>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-around',
-                  padding: '12px',
-                  backgroundColor: 'var(--surface-container-low)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--outline)',
-                  marginBottom: '16px',
-                  fontSize: '12px'
-                }}
-              >
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{ color: 'var(--secondary)', display: 'block' }}>Faculty</span>
-                  <strong style={{ fontSize: '14px' }}>4 Professors</strong>
-                </div>
-                <div style={{ width: '1px', backgroundColor: 'var(--outline)' }} />
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{ color: 'var(--secondary)', display: 'block' }}>Curriculum</span>
-                  <strong style={{ fontSize: '14px', color: 'var(--primary-container)' }}>Active Courses</strong>
-                </div>
-                <div style={{ width: '1px', backgroundColor: 'var(--outline)' }} />
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{ color: 'var(--secondary)', display: 'block' }}>Research</span>
-                  <strong style={{ fontSize: '14px' }}>3 Labs</strong>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', paddingTop: '14px', borderTop: '1px solid var(--outline)' }}>
-              <button
-                className="btn btn-secondary"
-                style={{ flex: 1, fontSize: '12.5px', padding: '8px 12px' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSelectDept(dept);
-                }}
-              >
-                <Building2 size={14} />
-                <span>View Department Profile</span>
-              </button>
-              <button
-                className="btn btn-secondary"
-                style={{ padding: '8px 12px' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenEdit(dept);
-                }}
-                title="Edit Department"
-              >
-                <Edit2 size={13} />
-              </button>
-              <button
-                className="btn btn-danger"
-                style={{ padding: '8px 12px' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteDepartment(dept.id, dept.code);
-                }}
-                title="Delete Department"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+        {departments.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', padding: '48px', textAlign: 'center', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-md)', border: '1px solid var(--outline)' }}>
+            <Building2 size={36} color="var(--secondary)" style={{ margin: '0 auto 12px auto' }} />
+            <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--on-surface)' }}>No Academic Departments Registered</h4>
+            <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
+              Click <strong>"Add Academic Department"</strong> above to register a department (e.g. CSE, IT, MECH, ECE).
+            </p>
           </div>
-        ))}
+        ) : (
+          departments.map((dept) => (
+            <div
+              key={dept.id}
+              className="card"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                borderColor: selectedDept?.id === dept.id ? 'var(--primary-container)' : 'var(--outline)'
+              }}
+              onClick={() => handleSelectDept(dept)}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <span className="badge badge-purple" style={{ fontSize: '13px', padding: '4px 10px' }}>
+                    {dept.code}
+                  </span>
+                  <span className="status-pill">
+                    <span className="status-dot"></span>
+                    Active
+                  </span>
+                </div>
+
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--on-surface)', marginBottom: '8px' }}>
+                  {dept.name}
+                </h3>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '14px', borderTop: '1px solid var(--outline)' }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ flex: 1, fontSize: '12.5px', padding: '8px 12px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectDept(dept);
+                  }}
+                >
+                  <Building2 size={14} />
+                  <span>View Details</span>
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 12px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEdit(dept);
+                  }}
+                  title="Edit Department"
+                >
+                  <Edit2 size={13} />
+                </button>
+                <button
+                  className="btn btn-danger"
+                  style={{ padding: '8px 12px' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDeleteDept(dept);
+                  }}
+                  title="Delete Department"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      {/* DETAILED DEPARTMENT PROFILE MODAL */}
+      {/* DEPARTMENT PROFILE MODAL */}
       {selectedDept && (
         <Modal
           isOpen={Boolean(selectedDept)}
           onClose={() => setSelectedDept(null)}
-          title={`Faculty Profile: ${selectedDept.code} — ${selectedDept.name}`}
+          title={`Department Profile: ${selectedDept.code} — ${selectedDept.name}`}
           maxWidth="840px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Editorial Department Header */}
+            {/* Department Header */}
             <div
               style={{
                 backgroundColor: 'var(--surface-container-low)',
                 border: '1px solid var(--outline)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '24px'
+                padding: '20px 24px'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -301,57 +282,34 @@ export const DepartmentsView: React.FC = () => {
                   <span className="badge badge-emerald" style={{ fontSize: '14px', padding: '4px 12px' }}>
                     {selectedDept.code}
                   </span>
-                  <span className="badge badge-purple">Faculty of Technology</span>
-                  <span className="badge badge-blue">NAAC A++ Accredited</span>
+                  <span className="badge badge-purple">Academic Department</span>
                 </div>
                 <span className="status-pill">
                   <span className="status-dot"></span>
-                  Active Department
+                  Active
                 </span>
               </div>
 
-              <h3 style={{ fontSize: '22px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
                 {selectedDept.name}
               </h3>
-              <p style={{ fontSize: '13.5px', color: 'var(--secondary)', marginTop: '6px', lineHeight: '1.5' }}>
-                Premier academic and research department under Karpagam Academy of Higher Education, dedicated to excellence in computational theory, software systems engineering, and interdisciplinary research.
-              </p>
-
-              <div style={{ display: 'flex', gap: '20px', marginTop: '16px', fontSize: '12.5px', color: 'var(--secondary)' }}>
-                <span><MapPin size={13} style={{ display: 'inline', marginRight: '4px' }} /> Academic Block 3, Campus South</span>
-                <span><Mail size={13} style={{ display: 'inline', marginRight: '4px' }} /> {selectedDept.code.toLowerCase()}@karpagam.edu.in</span>
-              </div>
             </div>
 
             {/* Profile Tabs */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--outline)', paddingBottom: '10px', flexWrap: 'wrap' }}>
-              <button
-                className={`tab-pill ${activeTab === 'overview' ? 'active' : ''}`}
-                onClick={() => setActiveTab('overview')}
-              >
-                <Award size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Vision & Leadership
-              </button>
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--outline)', paddingBottom: '10px' }}>
               <button
                 className={`tab-pill ${activeTab === 'faculty' ? 'active' : ''}`}
                 onClick={() => setActiveTab('faculty')}
               >
                 <GraduationCap size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Faculty Directory ({faculty.length})
+                Teaching Faculty ({faculty.length})
               </button>
               <button
-                className={`tab-pill ${activeTab === 'classes' ? 'active' : ''}`}
-                onClick={() => setActiveTab('classes')}
+                className={`tab-pill ${activeTab === 'students' ? 'active' : ''}`}
+                onClick={() => setActiveTab('students')}
               >
-                <BookOpen size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Curriculum Courses ({courses.length})
-              </button>
-              <button
-                className={`tab-pill ${activeTab === 'facilities' ? 'active' : ''}`}
-                onClick={() => setActiveTab('facilities')}
-              >
-                <FlaskConical size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Research Facilities (3)
+                <Users size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                Enrolled Students ({students.length})
               </button>
               <button
                 className={`tab-pill ${activeTab === 'notices' ? 'active' : ''}`}
@@ -362,43 +320,13 @@ export const DepartmentsView: React.FC = () => {
               </button>
             </div>
 
-            {/* TAB 1: OVERVIEW & LEADERSHIP */}
-            {activeTab === 'overview' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div className="card" style={{ padding: '20px' }}>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px' }}>Head of Department Message</h4>
-                  <p style={{ fontSize: '13px', color: 'var(--secondary)', lineHeight: '1.6' }}>
-                    "Welcome to the {selectedDept.name}. Our academic programs balance rigorous mathematical principles with modern engineering practices. We hold zero-tolerance for attendance fraud and maintain verifiable cryptographic presence across all lectures."
-                  </p>
-                  <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--primary-container)', fontWeight: 600 }}>
-                    — Prof. Alan Turing, HOD {selectedDept.code}
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div className="card" style={{ padding: '18px' }}>
-                    <h5 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '6px', color: 'var(--on-surface)' }}>Vision</h5>
-                    <p style={{ fontSize: '12.5px', color: 'var(--secondary)', lineHeight: '1.4' }}>
-                      To be a center of excellence in education and research, developing globally competent, socially committed professionals.
-                    </p>
-                  </div>
-                  <div className="card" style={{ padding: '18px' }}>
-                    <h5 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '6px', color: 'var(--on-surface)' }}>Academic Policies</h5>
-                    <p style={{ fontSize: '12.5px', color: 'var(--secondary)', lineHeight: '1.4' }}>
-                      Students must fulfill a minimum of 75% attendance in both theory and practicals to qualify for end-semester examinations.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: FACULTY DIRECTORY */}
+            {/* TAB 1: FACULTY DIRECTORY */}
             {activeTab === 'faculty' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <span className="form-label">TEACHING FACULTY & RESEARCH SCIENTISTS</span>
+                <span className="form-label">DEPARTMENT TEACHING STAFF ({faculty.length})</span>
                 {faculty.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--secondary)', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-sm)' }}>
-                    No faculty assigned to this department yet.
+                  <div style={{ padding: '28px', textAlign: 'center', color: 'var(--secondary)', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-sm)' }}>
+                    No faculty assigned to this department yet. Add teachers via the Student & Faculty Roster.
                   </div>
                 ) : (
                   faculty.map((f) => (
@@ -417,8 +345,8 @@ export const DepartmentsView: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                         <div
                           style={{
-                            width: '42px',
-                            height: '42px',
+                            width: '40px',
+                            height: '40px',
                             borderRadius: '50%',
                             backgroundColor: 'var(--primary-soft)',
                             color: 'var(--primary-container)',
@@ -433,10 +361,7 @@ export const DepartmentsView: React.FC = () => {
                         </div>
                         <div>
                           <strong style={{ fontSize: '14px' }}>{f.fullName}</strong>
-                          <div style={{ fontSize: '12px', color: 'var(--secondary)' }}>{f.email}</div>
-                          <div style={{ fontSize: '11.5px', color: 'var(--secondary)', marginTop: '2px' }}>
-                            Specialization: Distributed Systems & Cryptographic Verification
-                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '2px' }}>{f.email}</div>
                         </div>
                       </div>
                       <span className="badge badge-emerald">Faculty Member</span>
@@ -446,80 +371,42 @@ export const DepartmentsView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 3: CLASSES */}
-            {activeTab === 'classes' && (
+            {/* TAB 2: ENROLLED STUDENTS */}
+            {activeTab === 'students' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <span className="form-label">OFFICIAL CURRICULUM COURSES</span>
-                {courses.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--secondary)', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-sm)' }}>
-                    No courses registered under this department yet.
+                <span className="form-label">ENROLLED DEPARTMENT STUDENTS ({students.length})</span>
+                {students.length === 0 ? (
+                  <div style={{ padding: '28px', textAlign: 'center', color: 'var(--secondary)', backgroundColor: 'var(--surface-container-low)', borderRadius: 'var(--radius-sm)' }}>
+                    No students enrolled in this department yet.
                   </div>
                 ) : (
-                  courses.map((c) => (
+                  students.map((s) => (
                     <div
-                      key={c.id}
+                      key={s.id}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '14px 18px',
+                        padding: '12px 18px',
                         backgroundColor: 'var(--surface-container-low)',
                         borderRadius: 'var(--radius-sm)',
                         border: '1px solid var(--outline)'
                       }}
                     >
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span className="badge badge-emerald">{c.code}</span>
-                          <strong style={{ fontSize: '14px' }}>{c.title || (c as any).name}</strong>
-                          <span className="badge badge-blue">{(c as any).credits || 4} Credits</span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '4px' }}>
-                          Instructor: {c.professorName || 'Prof. Alan Turing'} • {c.studentCount || (c as any).student_count || 0} enrolled students
+                        <strong>{s.fullName}</strong>
+                        <div style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '2px' }}>
+                          {s.email} • <code style={{ fontSize: '11px' }}>{s.enrollmentId || 'No ID'}</code>
                         </div>
                       </div>
+                      <span className="badge badge-blue">Year {s.yearOfStudy || 1}</span>
                     </div>
                   ))
                 )}
               </div>
             )}
 
-            {/* TAB 4: FACILITIES */}
-            {activeTab === 'facilities' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="card" style={{ padding: '16px' }}>
-                  <h5 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '6px' }}>
-                    Artificial Intelligence & Systems Lab
-                  </h5>
-                  <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>
-                    Equipped with high-performance computing clusters and edge robotics testing rigs for AI specialization students.
-                  </p>
-                  <span className="badge badge-emerald" style={{ marginTop: '8px' }}>Room 204 • Turing Block</span>
-                </div>
-
-                <div className="card" style={{ padding: '16px' }}>
-                  <h5 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '6px' }}>
-                    Network Security & Cryptography Center
-                  </h5>
-                  <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>
-                    Dedicated infrastructure for zero-trust security audits, cryptographic rotating QR research, and BLE beacon sensor grids.
-                  </p>
-                  <span className="badge badge-emerald" style={{ marginTop: '8px' }}>Room 301 • Turing Block</span>
-                </div>
-
-                <div className="card" style={{ padding: '16px' }}>
-                  <h5 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '6px' }}>
-                    Advanced Software Engineering Practicum
-                  </h5>
-                  <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>
-                    Collaborative development workstations with automated testing benches and embedded micro-controllers.
-                  </p>
-                  <span className="badge badge-emerald" style={{ marginTop: '8px' }}>Room 102 • Lovelace Block</span>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 5: BULLETINS */}
+            {/* TAB 3: BULLETINS */}
             {activeTab === 'notices' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <form onSubmit={handlePostAnnouncement} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -527,7 +414,7 @@ export const DepartmentsView: React.FC = () => {
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="Bulletin Title (e.g. Department Symposium Registration)"
+                      placeholder="Bulletin Title"
                       value={annTitle}
                       onChange={(e) => setAnnTitle(e.target.value)}
                       required
@@ -546,7 +433,7 @@ export const DepartmentsView: React.FC = () => {
                     <textarea
                       className="form-textarea"
                       rows={2}
-                      placeholder="Enter official departmental notice for faculty and enrolled majors..."
+                      placeholder="Enter official departmental notice..."
                       value={annContent}
                       onChange={(e) => setAnnContent(e.target.value)}
                       required
@@ -558,10 +445,10 @@ export const DepartmentsView: React.FC = () => {
                   </div>
                 </form>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '220px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '240px', overflowY: 'auto' }}>
                   {announcements.length === 0 ? (
                     <div style={{ fontSize: '13px', color: 'var(--secondary)', textAlign: 'center', padding: '20px' }}>
-                      No notices posted to this department.
+                      No announcements posted to this department.
                     </div>
                   ) : (
                     announcements.map((a) => (
@@ -575,12 +462,12 @@ export const DepartmentsView: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <strong style={{ fontSize: '13px' }}>{a.title}</strong>
-                          <span className={`badge ${a.priority === 'URGENT' ? 'badge-rose' : 'badge-emerald'}`}>
+                          <strong style={{ fontSize: '13.5px' }}>{a.title}</strong>
+                          <span className={`badge ${a.priority === 'URGENT' ? 'badge-rose' : 'badge-purple'}`}>
                             {a.priority}
                           </span>
                         </div>
-                        <p style={{ fontSize: '12px', color: 'var(--secondary)', marginTop: '4px' }}>{a.content}</p>
+                        <p style={{ fontSize: '12.5px', color: 'var(--secondary)', marginTop: '4px' }}>{a.content}</p>
                       </div>
                     ))
                   )}
@@ -591,27 +478,41 @@ export const DepartmentsView: React.FC = () => {
         </Modal>
       )}
 
-      {/* Add / Edit Department Modal */}
+      {/* CONFIRM DELETE DEPARTMENT DIALOG */}
+      {confirmDeleteDept && (
+        <ConfirmDialog
+          isOpen={Boolean(confirmDeleteDept)}
+          title={`Delete Department ${confirmDeleteDept.code}?`}
+          message={`Are you sure you want to remove the department "${confirmDeleteDept.name}"? Faculty and students assigned to this department will remain in the directory with department set to None.`}
+          confirmText="Yes, Delete Department"
+          cancelText="Cancel"
+          isDestructive={true}
+          onConfirm={executeDeleteDepartment}
+          onCancel={() => setConfirmDeleteDept(null)}
+        />
+      )}
+
+      {/* CREATE / EDIT DEPARTMENT MODAL */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? `Edit Department: ${code}` : 'Register New Academic Department'}
+        title={isEditing ? `Edit Department: ${code}` : 'Register Academic Department'}
       >
         <form onSubmit={handleSaveDepartment}>
           <div className="form-group">
-            <label className="form-label">DEPARTMENT CODE (ABBREVIATION)</label>
+            <label className="form-label">DEPARTMENT CODE</label>
             <input
               type="text"
               className="form-input"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="e.g. CSE, IT, MECH, ECE, AERO"
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="e.g. CSE, IT, MECH, ECE"
               required
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label">FULL DEPARTMENT NAME</label>
+            <label className="form-label">DEPARTMENT NAME</label>
             <input
               type="text"
               className="form-input"

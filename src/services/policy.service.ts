@@ -507,7 +507,7 @@ export class PolicyService {
     const studentId = qrResult.token.studentId;
 
     // Verify session and professor ownership
-    const sessionRes = await db.query(
+    let sessionRes = await db.query(
       `SELECT s.*, u.full_name AS student_name, u.enrollment_id, u.photo_url
        FROM sessions s
        JOIN users u ON u.id = $1
@@ -516,7 +516,38 @@ export class PolicyService {
     );
 
     if (sessionRes.rows.length === 0) {
-      throw new Error('Session or student not found.');
+      // Check if student exists
+      const userRes = await db.query(`SELECT full_name AS student_name, enrollment_id, photo_url FROM users WHERE id = $1`, [studentId]);
+      if (userRes.rows.length === 0) {
+        throw new Error('Student user record not found.');
+      }
+
+      // Check if sessionId is a timetable slot ID
+      const slotRes = await db.query(`SELECT * FROM timetable_slots WHERE id = $1`, [sessionId]);
+      if (slotRes.rows.length > 0) {
+        const slot = slotRes.rows[0];
+        await db.query(
+          `INSERT INTO sessions (id, course_id, batch_id, professor_id, classroom_id, start_time, end_time, status)
+           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '2 hours', 'ACTIVE')
+           ON CONFLICT (id) DO NOTHING`,
+          [sessionId, slot.course_id || 'crs_general', slot.batch_id, slot.professor_id || professorId, slot.classroom_id]
+        );
+      } else {
+        await db.query(
+          `INSERT INTO sessions (id, course_id, professor_id, start_time, end_time, status)
+           VALUES ($1, 'crs_general', $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '2 hours', 'ACTIVE')
+           ON CONFLICT (id) DO NOTHING`,
+          [sessionId, professorId]
+        );
+      }
+
+      sessionRes = await db.query(
+        `SELECT s.*, u.full_name AS student_name, u.enrollment_id, u.photo_url
+         FROM sessions s
+         JOIN users u ON u.id = $1
+         WHERE s.id = $2`,
+        [studentId, sessionId]
+      );
     }
 
     const sessionData = sessionRes.rows[0];
@@ -533,16 +564,45 @@ export class PolicyService {
       throw new Error('This student QR has already been scanned (replay prevention).');
     }
 
+    // Check if scanning professor is assigned to this batch/session
+    let isOutOfBatch = false;
+    if (sessionData.batch_id) {
+      const batchProfRes = await db.query(
+        `SELECT 1 FROM batches b
+         LEFT JOIN batch_professors bp ON b.id = bp.batch_id
+         WHERE b.id = $1 AND (b.professor_id = $2 OR bp.professor_id = $2)`,
+        [sessionData.batch_id, professorId]
+      );
+      if (batchProfRes.rows.length === 0 && sessionData.professor_id !== professorId) {
+        isOutOfBatch = true;
+      }
+    } else if (sessionData.professor_id !== professorId) {
+      isOutOfBatch = true;
+    }
+
+    const markedBy = isOutOfBatch ? 'PROFESSOR_OUT_OF_BATCH' : 'PROFESSOR';
+    const notes = isOutOfBatch
+      ? 'Marked PRESENT by professor (out-of-batch proxy/override).'
+      : 'Direct physical scan by professor.';
+    const decisionReason = isOutOfBatch
+      ? 'Direct physical scan by professor (out-of-batch proxy/override).'
+      : 'Direct physical scan by professor in classroom.';
+
     const attemptId = `att_prof_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const recordId = `rec_prof_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     const diagnostics: ValidationDiagnostics = {
-      enrollmentCheck: { passed: true, message: 'Verified via professor direct scan.' },
+      enrollmentCheck: {
+        passed: true,
+        message: isOutOfBatch
+          ? 'Verified via out-of-batch professor proxy scan.'
+          : 'Verified via professor direct scan.'
+      },
       sessionStateCheck: { passed: true, message: 'Session is active.' },
       qrVerification: { passed: true, message: 'Student personal dynamic QR signature valid.' },
       replayPrevention: { passed: true, message: 'Fresh student nonce.' },
       spatialCheck: { passed: true, omitted: true, message: 'Proximity verified by physical professor device scan.' },
-      antiSpoofingCheck: { passed: true, message: 'Direct hardware scan by professor.' },
+      antiSpoofingCheck: { passed: true, message: isOutOfBatch ? 'Direct hardware scan by out-of-batch professor.' : 'Direct hardware scan by professor.' },
       biometricCheck: { passed: true, omitted: true, message: 'Visual identity confirmed by professor.' }
     };
 
@@ -561,17 +621,17 @@ export class PolicyService {
         studentQrPayload,
         JSON.stringify(diagnostics),
         AttendanceDecision.ACCEPT,
-        'Direct physical scan by professor in classroom.'
+        decisionReason
       ]
     );
 
     // Insert finalized record
     await db.query(
       `INSERT INTO attendance_records (id, session_id, student_id, attempt_id, status, marked_by, notes)
-       VALUES ($1, $2, $3, $4, 'PRESENT', 'PROFESSOR', 'Direct physical scan by professor.')
+       VALUES ($1, $2, $3, $4, 'PRESENT', $5, $6)
        ON CONFLICT (session_id, student_id)
-       DO UPDATE SET status = 'PRESENT', marked_by = 'PROFESSOR', attempt_id = EXCLUDED.attempt_id`,
-      [recordId, sessionId, studentId, attemptId]
+       DO UPDATE SET status = 'PRESENT', marked_by = EXCLUDED.marked_by, notes = EXCLUDED.notes, attempt_id = EXCLUDED.attempt_id`,
+      [recordId, sessionId, studentId, attemptId, markedBy, notes]
     );
 
     // Broadcast check-in
@@ -584,13 +644,13 @@ export class PolicyService {
       decision: AttendanceDecision.ACCEPT,
       status: 'PRESENT',
       timestamp: serverTimestamp.toISOString(),
-      decisionReason: 'Direct physical scan by professor.'
+      decisionReason
     });
 
     return {
       attemptId,
       decision: AttendanceDecision.ACCEPT,
-      decisionReason: 'Direct physical scan by professor.',
+      decisionReason,
       diagnostics,
       attendanceRecordId: recordId,
       studentName: sessionData.student_name,

@@ -10,6 +10,7 @@ router.get('/', authenticateToken, SessionController.listSessions);
 router.get('/:id', authenticateToken, SessionController.getSessionById);
 
 router.post('/', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.createSession);
+router.post('/launch-slot', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.launchSlotSession);
 router.post('/:id/start', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.startSession);
 router.post('/:id/end', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.endSession);
 

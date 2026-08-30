@@ -5,7 +5,6 @@ import { Topbar } from './components/layout/Topbar.js';
 import { LoginView } from './views/LoginView.js';
 import { DashboardOverview } from './views/DashboardOverview.js';
 import { DirectoryView } from './views/DirectoryView.js';
-import { ClassesView } from './views/ClassesView.js';
 import { BatchesView } from './views/BatchesView.js';
 import { DepartmentsView } from './views/DepartmentsView.js';
 import { TimetableTemplatesView } from './views/TimetableTemplatesView.js';
@@ -47,10 +46,9 @@ const DashboardContent: React.FC = () => {
   const titles: Record<NavView, string> = {
     dashboard: 'Executive Campus Overview & Analytics',
     directory: 'Student & Teacher Roster Directory',
-    classes: 'Departmental Classes & Cohorts',
     batches: 'Batches & Cross-Disciplinary Cohorts',
     departments: 'University Academic Departments',
-    templates: 'Timetable Templates & Cohort Scheduling',
+    templates: 'Timetable & Scheduling Matrix',
     monitor: 'Campus Live Telemetry & Disciplinary Audit'
   };
 
@@ -62,7 +60,6 @@ const DashboardContent: React.FC = () => {
         <main className="content-viewport">
           {currentView === 'dashboard' && <DashboardOverview onNavigate={setCurrentView} />}
           {currentView === 'directory' && <DirectoryView />}
-          {currentView === 'classes' && <ClassesView />}
           {currentView === 'batches' && <BatchesView />}
           {currentView === 'departments' && <DepartmentsView />}
           {currentView === 'templates' && <TimetableTemplatesView />}

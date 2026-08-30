@@ -182,7 +182,7 @@ class ApiClient {
     name: string;
     code: string;
     departmentId?: string | null;
-    professorId: string;
+    professorId?: string | null;
     allowCrossDepartment: boolean;
     allowMultipleYears: boolean;
     allowedYears?: number[];
@@ -248,6 +248,10 @@ class ApiClient {
     });
   }
 
+  async getClassrooms(): Promise<{ classrooms: any[] }> {
+    return this.request<{ classrooms: any[] }>('/classrooms');
+  }
+
   // Timetable
   async getTimetableSlots(filters?: {
     scheduleType?: string;
@@ -283,6 +287,24 @@ class ApiClient {
   }): Promise<{ message: string; slot: TimetableSlot }> {
     return this.request<{ message: string; slot: TimetableSlot }>('/timetable/slots', {
       method: 'POST',
+      body: JSON.stringify(body)
+    });
+  }
+
+  async updateTimetableSlot(
+    slotId: string,
+    body: {
+      dayOfWeek?: number;
+      startTime?: string;
+      endTime?: string;
+      batchId?: string;
+      courseId?: string;
+      professorId?: string;
+      classroomId?: string;
+    }
+  ): Promise<{ message: string; slot: TimetableSlot }> {
+    return this.request<{ message: string; slot: TimetableSlot }>(`/timetable/slots/${encodeURIComponent(slotId)}`, {
+      method: 'PUT',
       body: JSON.stringify(body)
     });
   }

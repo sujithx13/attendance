@@ -139,6 +139,91 @@ export class TimetableService {
     await db.query('UPDATE timetable_slots SET is_active = FALSE WHERE id = $1', [id]);
   }
 
+  static async updateSlot(
+    id: string,
+    dto: {
+      dayOfWeek?: number;
+      startTime?: string;
+      endTime?: string;
+      batchId?: string;
+      courseId?: string;
+      professorId?: string;
+      classroomId?: string;
+    }
+  ): Promise<TimetableSlot | null> {
+    const db = await getDb();
+    await db.query(
+      `UPDATE timetable_slots
+       SET day_of_week = COALESCE($1, day_of_week),
+           start_time = COALESCE($2, start_time),
+           end_time = COALESCE($3, end_time),
+           batch_id = CASE WHEN $8 THEN $4 ELSE batch_id END,
+           course_id = CASE WHEN $9 THEN $5 ELSE course_id END,
+           professor_id = COALESCE($6, professor_id),
+           classroom_id = COALESCE($7, classroom_id)
+       WHERE id = $10`,
+      [
+        dto.dayOfWeek !== undefined ? dto.dayOfWeek : null,
+        dto.startTime || null,
+        dto.endTime || null,
+        dto.batchId || null,
+        dto.courseId || null,
+        dto.professorId || null,
+        dto.classroomId || null,
+        dto.batchId !== undefined,
+        dto.courseId !== undefined,
+        id
+      ]
+    );
+
+    return this.getSlotById(id);
+  }
+
+  static async getStudentTimetable(studentId: string): Promise<TimetableSlot[]> {
+    const db = await getDb();
+    const res = await db.query(
+      `SELECT DISTINCT ts.*,
+              b.code AS batch_code, b.name AS batch_name,
+              c.code AS course_code, c.name AS course_name,
+              u.full_name AS professor_name,
+              clr.name AS classroom_name
+       FROM timetable_slots ts
+       LEFT JOIN batches b ON ts.batch_id = b.id
+       LEFT JOIN batch_members bm ON b.id = bm.batch_id
+       LEFT JOIN courses c ON ts.course_id = c.id
+       LEFT JOIN enrollments en ON c.id = en.course_id
+       JOIN users u ON ts.professor_id = u.id
+       JOIN classrooms clr ON ts.classroom_id = clr.id
+       WHERE ts.is_active = TRUE
+         AND (bm.student_id = $1 OR en.student_id = $1)
+       ORDER BY ts.day_of_week ASC, ts.start_time ASC`,
+      [studentId]
+    );
+    return res.rows.map(this.mapSlotRow);
+  }
+
+  static async getProfessorTimetable(professorId: string): Promise<TimetableSlot[]> {
+    const db = await getDb();
+    const res = await db.query(
+      `SELECT DISTINCT ts.*,
+              b.code AS batch_code, b.name AS batch_name,
+              c.code AS course_code, c.name AS course_name,
+              u.full_name AS professor_name,
+              clr.name AS classroom_name
+       FROM timetable_slots ts
+       LEFT JOIN batches b ON ts.batch_id = b.id
+       LEFT JOIN batch_professors bp ON b.id = bp.batch_id
+       LEFT JOIN courses c ON ts.course_id = c.id
+       JOIN users u ON ts.professor_id = u.id
+       JOIN classrooms clr ON ts.classroom_id = clr.id
+       WHERE ts.is_active = TRUE
+         AND (ts.professor_id = $1 OR bp.professor_id = $1 OR b.professor_id = $1)
+       ORDER BY ts.day_of_week ASC, ts.start_time ASC`,
+      [professorId]
+    );
+    return res.rows.map(this.mapSlotRow);
+  }
+
   /**
    * CORE SCHEDULING ENGINE:
    * Generates live class & batch attendance sessions for a given date from active timetable slots.

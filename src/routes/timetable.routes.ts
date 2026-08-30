@@ -8,9 +8,11 @@ const router = Router();
 
 // View timetable (students, professors, admins)
 router.get('/', authenticateToken, TimetableController.list);
+router.get('/my', authenticateToken, TimetableController.getMyTimetable);
 
-// Admin creates timetable slot
+// Admin creates or updates timetable slot
 router.post('/slots', authenticateToken, requireRole(UserRole.ADMIN), TimetableController.createSlot);
+router.put('/slots/:id', authenticateToken, requireRole(UserRole.ADMIN), TimetableController.updateSlot);
 
 // Admin deactivates timetable slot
 router.delete('/slots/:id', authenticateToken, requireRole(UserRole.ADMIN), TimetableController.deleteSlot);

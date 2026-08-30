@@ -84,11 +84,18 @@ export class AttendanceController {
    */
   static async professorScanStudent(req: AuthenticatedRequest, res: Response): Promise<void> {
     const professorId = req.user?.userId;
-    const { sessionId, studentQrPayload } = req.body;
+    let { sessionId, studentQrPayload } = req.body;
 
     if (!professorId) {
       res.status(401).json({ error: 'AUTHENTICATION_REQUIRED' });
       return;
+    }
+
+    if (!sessionId && studentQrPayload) {
+      try {
+        const decoded = JSON.parse(Buffer.from(studentQrPayload, 'base64url').toString('utf-8'));
+        sessionId = decoded.sessionId;
+      } catch {}
     }
 
     if (!sessionId || !studentQrPayload) {

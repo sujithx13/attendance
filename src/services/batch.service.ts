@@ -183,6 +183,76 @@ export class BatchService {
     }));
   }
 
+  static async getStudentBatches(studentId: string): Promise<Batch[]> {
+    const db = await getDb();
+    const res = await db.query(
+      `SELECT b.*,
+              d.code AS department_code, d.name AS department_name,
+              u.full_name AS professor_name,
+              COUNT(DISTINCT bm2.student_id) AS member_count
+       FROM batches b
+       JOIN batch_members bm ON b.id = bm.batch_id
+       LEFT JOIN departments d ON b.department_id = d.id
+       LEFT JOIN users u ON b.professor_id = u.id
+       LEFT JOIN batch_members bm2 ON bm2.batch_id = b.id
+       WHERE bm.student_id = $1
+       GROUP BY b.id, d.code, d.name, u.full_name
+       ORDER BY b.name ASC`,
+      [studentId]
+    );
+    return res.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      departmentId: row.department_id,
+      departmentCode: row.department_code,
+      departmentName: row.department_name,
+      professorId: row.professor_id,
+      professorName: row.professor_name,
+      allowCrossDepartment: Boolean(row.allow_cross_department),
+      allowMultipleYears: Boolean(row.allow_multiple_years),
+      allowedYears: row.allowed_years || [],
+      description: row.description,
+      memberCount: parseInt(row.member_count || '0', 10),
+      createdAt: row.created_at
+    }));
+  }
+
+  static async getProfessorBatches(professorId: string): Promise<Batch[]> {
+    const db = await getDb();
+    const res = await db.query(
+      `SELECT DISTINCT b.*,
+              d.code AS department_code, d.name AS department_name,
+              u.full_name AS professor_name,
+              COUNT(DISTINCT bm.student_id) AS member_count
+       FROM batches b
+       LEFT JOIN batch_professors bp ON b.id = bp.batch_id
+       LEFT JOIN departments d ON b.department_id = d.id
+       LEFT JOIN users u ON b.professor_id = u.id
+       LEFT JOIN batch_members bm ON bm.batch_id = b.id
+       WHERE b.professor_id = $1 OR bp.professor_id = $1
+       GROUP BY b.id, d.code, d.name, u.full_name
+       ORDER BY b.name ASC`,
+      [professorId]
+    );
+    return res.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      departmentId: row.department_id,
+      departmentCode: row.department_code,
+      departmentName: row.department_name,
+      professorId: row.professor_id,
+      professorName: row.professor_name,
+      allowCrossDepartment: Boolean(row.allow_cross_department),
+      allowMultipleYears: Boolean(row.allow_multiple_years),
+      allowedYears: row.allowed_years || [],
+      description: row.description,
+      memberCount: parseInt(row.member_count || '0', 10),
+      createdAt: row.created_at
+    }));
+  }
+
   /**
    * Lists all students enrolled in a specific batch.
    */

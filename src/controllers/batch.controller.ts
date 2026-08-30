@@ -53,6 +53,29 @@ export class BatchController {
     }
   }
 
+  static async getMyBatches(req: any, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      const role = req.user?.role;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized.' });
+        return;
+      }
+
+      let batches: any[] = [];
+      if (role === 'STUDENT') {
+        batches = await BatchService.getStudentBatches(userId);
+      } else {
+        batches = await BatchService.getProfessorBatches(userId);
+      }
+
+      res.json({ batches });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) as string;
