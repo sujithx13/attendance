@@ -1,184 +1,169 @@
-# Server-Driven College Attendance System Backend
+# Server-Driven College Attendance & Academic Management System
 
-A robust, enterprise-grade, backend-authoritative college attendance management system built with **Node.js, TypeScript, PostgreSQL (with embedded PGlite support), and WebSockets**.
-
-The backend serves as the single source of truth, enforcing dynamic policy configuration, advanced spatial and cryptographic anti-fraud protocols, and sub-millisecond attendance analytics via PostgreSQL Materialized Views.
+An enterprise-grade, server-authoritative institutional attendance, timetable scheduling, and cohort management platform built with **Node.js, TypeScript, PostgreSQL (with embedded PGlite support), WebSockets, React (Vite Admin Dashboard), and React Native (Expo Mobile App)**.
 
 ---
 
-## Key Architectural Capabilities
+## 🏛️ Platform Architecture
 
-### 1. Server-Driven UI (SDUI) Configuration Contract
-- **Dynamic Policy Orchestration**: The backend dynamically delivers JSON configuration payloads defining verification steps (`DECLARATION`, `QR_SCANNER`, `GEOLOCATION_CHECK`, `BIOMETRIC_FACE`, `REVERSE_QR_DISPLAY`).
-- **Zero App-Store Update Iteration**: Administrators can instantly add mandatory steps (e.g. academic integrity pledges, high-stakes exam face verification) or adapt outdoor classrooms by expanding geofence boundaries on the fly.
-- **Hardware-Aware Adaptation**: Automatically alters flows for sensorless or desktop clients (substituting mobile GPS checks with reverse dynamic QR display or campus subnet validation).
-
-### 2. Five-Layer Fraud Mitigation & Anti-Spoofing Protocol
-- **Layer 1: Time-Bound Cryptographic Rotating QR Codes**
-  - Signed via HMAC-SHA256 with rotating server secrets.
-  - Automatically regenerates every 15–20 seconds via WebSockets.
-  - Exportable as PNG/SVG/DataURL with custom expiration (e.g., 5 min, 15 min).
-  - Cryptographic nonce replay prevention with atomic database tracking.
-  - **Bidirectional Scanning**: Supports both Professor broadcast QR (1-to-many) and Student personal dynamic QR scanned by Professor (1-to-1 reverse scan).
-- **Layer 2: Spatial Geofencing & Haversine Proximity Math**
-  - High-precision great-circle distance calculations via the Haversine formula.
-  - Strict GPS accuracy radius filtering ($\le 35\text{m}$) to reject drifted/inaccurate coordinates.
-  - Borderline buffer logic: Attempts slightly beyond boundary escalate to `CHALLENGE` state instead of hard failure.
-- **Layer 3: Client Mock Location & GPS Spoofing Detection**
-  - Inspects client telemetry (`isFromMockProvider`, `isMock`, fake GPS apps, developer options).
-  - Anomaly velocity detection (flags physical teleportation/impossible speeds across consecutive scans).
-  - Automatically logs security violations to an immutable disciplinary audit ledger.
-- **Layer 4: Policy-Driven Multi-Condition Evaluation & Audit Trails**
-  - Evaluates attempts into three discrete states: `ACCEPT`, `CHALLENGE`, or `REJECT`.
-  - Granular diagnostic JSON stored with every attempt for transparent dispute resolution.
-  - Real-time 1-click challenge resolution queue for professors.
-- **Layer 5: Multi-Factor Biometric Verification**
-  - Cosine similarity matching between live face embedding vectors and enrolled student profile vectors.
-  - Configurable confidence threshold (default 75%).
-
-### 3. High-Performance PostgreSQL Analytics via Materialized Views
-- **Sub-Millisecond Queries**: Avoids expensive multi-table joins across millions of rows by pre-aggregating attendance statistics into `mv_student_course_attendance` and `mv_session_attendance_stats`.
-- **Zero-Downtime Concurrent Refresh**: Supports `REFRESH MATERIALIZED VIEW CONCURRENTLY` without locking read queries.
-
-### 4. Dual-Mode Database Architecture
-- **Embedded Mode (Default)**: Runs real PostgreSQL 16 compiled to WebAssembly via `@electric-sql/pglite` with persistence in `./data/attendance.db` (zero external dependencies required).
-- **External Mode**: Automatically connects to any external PostgreSQL cluster (AWS RDS, Neon, Supabase) when `DATABASE_URL` is set.
+```text
+├── src/                               # Backend REST API & Real-time WebSockets
+│   ├── config/                        # Environment & server settings
+│   ├── controllers/                   # Auth, Sessions, Attendance, Batches, Timetables, etc.
+│   ├── database/                      # PGlite embedded PostgreSQL database engine & migrations
+│   ├── routes/                        # Express API route declarations
+│   ├── services/                      # Cryptographic QR service, Policy engine, Analytics, etc.
+│   └── types/                         # TypeScript interfaces and SDUI contracts
+│
+├── admin-dashboard/                   # Web-based University Administration Portal
+│   ├── src/components/                # Layouts, Custom ConfirmDialogs, Modals, Forms
+│   ├── src/views/                     # Live Monitor, Departments, Batches, Timetables, Directory
+│   └── src/services/                  # Typed administrative API client
+│
+├── KAHE-mobile-attendance-frontend-api/ # Cross-Platform Mobile Application (Expo / React Native)
+│   ├── App.tsx                        # Emerald-themed native interface & Universal QR Scanner
+│   ├── lib/api.ts                     # Mobile API client with session management
+│   └── lib/navigation.ts              # Role-aware mobile navigation bar
+│
+└── sql/                               # Incremental PostgreSQL database migrations (001 - 008)
+```
 
 ---
 
-## Quick Start Guide
+## ✨ Key Capabilities & Architectural Highlights
+
+### 1. 📷 Universal Bidirectional QR Attendance & Out-of-Batch Verification
+- **Student Class QR Pass**: Students tap any lecture in their timetable to generate a signed dynamic QR pass specifically bound to that session. When any professor scans it, attendance is recorded as **`PRESENT`**.
+- **Faculty Classroom Live Broadcast**: Professors tap any class in their schedule to launch a live rotating cryptographic QR code (HMAC-SHA256, rotating every 15s) for students to scan in the lecture hall.
+- **Universal Smart Scanner**: A single scanner interface in the mobile app that automatically detects whether it's scanning a student pass (for professors) or a classroom broadcast (for students).
+- **Out-of-Batch Professor Override**: Migration `008_allow_out_of_batch_professors.sql` enables any institutional professor to scan students for edge cases/substitute lectures, recording attendance as **`PRESENT`** with audit tracking (`marked_by: 'PROFESSOR_OUT_OF_BATCH'`).
+
+### 2. 🛡️ Five-Layer Fraud Mitigation & Anti-Spoofing Engine
+1. **Time-Bound HMAC-SHA256 Cryptographic Tokens**: Server-signed rotating nonces with atomic replay prevention.
+2. **Spatial Geofencing**: High-precision Haversine distance math with GPS accuracy radius filtering ($\le 35\text{m}$) and border buffer logic.
+3. **Client Mock Location & GPS Spoofing Detection**: Telemetry inspection (`isFromMockProvider`, developer options, fake GPS apps, velocity teleportation detection).
+4. **Policy-Driven Multi-Condition Decision Engine**: Discrete `ACCEPT`, `CHALLENGE`, or `REJECT` state evaluation with structured diagnostics stored per attempt.
+5. **Biometric Face Verification (Optional)**: 128-dimensional vector cosine similarity matching against enrolled student face vectors.
+
+### 3. 🗓️ Academic Cohort Batches & Interactive Timetable Matrix
+- **Flexible Batch Cohorts**: Support multi-department, multi-year cohorts with multiple assigned faculty mentors.
+- **AM/PM 12h Timetable Scheduling**: Weekly matrix (Monday through Saturday) with human-friendly time selectors (`09:00 AM – 10:30 AM`), instant 1-click slot editing, deletion, and session launching.
+- **Sunday Holiday Support**: Context-aware scheduling that identifies weekend holidays on mobile and defaults to the upcoming week.
+
+### 4. 🎨 Modern Design & Reusable Confirmation Dialogs
+- **Institutional Emerald Theme**: Karpagam Green (`#0D631B` / `#16A34A`), elevated white cards, segmented day pickers, and floating navigation dock.
+- **Custom Confirmation Modals**: Built-in high-contrast modal dialogs (`ConfirmDialog` in admin dashboard and `ConfirmModal` / `ResultModal` in mobile app) eliminating raw browser `alert()` and `confirm()` prompts.
+- **Profile Screen View & Edit Modes**: Read-only institutional credentials view by default + on-demand edit mode protected by confirmation popups.
+
+### 5. ⚡ PostgreSQL Materialized Views & Dual-Mode Database
+- **Sub-Millisecond Queries**: Fast queries via PostgreSQL Materialized Views (`mv_student_course_attendance`, `mv_session_attendance_stats`).
+- **Embedded Zero-Config Database**: Runs PostgreSQL 16 WebAssembly via `@electric-sql/pglite` stored locally in `./data/attendance.db`. Or connect to external PostgreSQL clusters by setting `DATABASE_URL`.
+
+---
+
+## 🚀 Quick Start Guide
 
 ### Prerequisites
-- Node.js v18+ (tested on Node.js v26)
-- npm v9+
+- **Node.js**: v18+ (tested on Node.js v20 / v22 / v26)
+- **npm**: v9+
 
-### 1. Installation
+---
+
+### 1. Backend Server Setup
+
 ```bash
+# Navigate to the workspace root and install dependencies
 npm install
-```
 
-### 2. Environment Configuration
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
+# Start the Backend Server (Runs on port 4000)
+npm run dev
+# Or build and run production bundle:
+npm run build && node dist/server.js
 ```
-*(Leave `DATABASE_URL=` empty to run embedded PostgreSQL out of the box!)*
+- **REST API**: `http://localhost:4000/api/v1`
+- **WebSocket Server**: `ws://localhost:4000/ws`
+- **Health Check**: `http://localhost:4000/health`
 
-### 3. Database Migration & Seeding
-```bash
-# Run schema migrations and seed realistic university dataset
-npm run seed
-```
+---
 
-### 4. Run Automated Test Suite
-```bash
-npm test
-```
+### 2. Admin Dashboard Setup
 
-### 5. Start Development Server
 ```bash
+# Open a new terminal in admin-dashboard
+cd admin-dashboard
+npm install
+
+# Start the Vite development server (Runs on port 5173)
 npm run dev
 ```
-- REST API: `http://localhost:4000/api/v1`
-- WebSocket Server: `ws://localhost:4000/ws`
-- Health Check: `http://localhost:4000/health`
+- **Admin Portal**: `http://localhost:5173`
 
 ---
 
-## Pre-Configured Seed Credentials
+### 3. Mobile App (Expo / React Native) Setup
 
-| Role | Email | Password | Details |
+```bash
+# Open a new terminal in KAHE-mobile-attendance-frontend-api
+cd KAHE-mobile-attendance-frontend-api
+npm install
+
+# Start Expo dev server with LAN and Web support (Runs on port 8081)
+npx expo start --host lan --web
+```
+- **Mobile Web App**: `http://localhost:8081` (or `http://<YOUR_LOCAL_IP>:8081`)
+- **Native Mobile**: Scan the displayed terminal QR code using the **Expo Go** app on iOS or Android.
+
+---
+
+## 🔑 Default Credentials
+
+| Role | Email | Password | Access Details |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin@university.edu` | `password123` | Full administrative privileges |
-| **Professor** | `prof.alan@university.edu` | `password123` | Assigned to CS101 in Turing Hall |
-| **Professor** | `prof.ada@university.edu` | `password123` | Assigned to CS201 in Lovelace Lab |
-| **Student** | `student.john@university.edu` | `password123` | Enrolled in CS101, CS201 (STU2026001) |
-| **Student** | `student.sarah@university.edu` | `password123` | Enrolled in CS101, CS201 (STU2026002) |
-| **Student** | `student.david@university.edu` | `password123` | Enrolled in CS101, CS201 (STU2026003) |
-| **Student** | `student.emily@university.edu` | `password123` | Enrolled in CS101, CS301 (STU2026004) |
+| **System Administrator** | `admin@university.edu` | `password123` | Full access to Admin Dashboard |
+| **Faculty / Professor** | `prof.alan@university.edu` | `password123` | Broadcast Live Class QRs, scan student passes |
+| **Student** | `student.john@university.edu` | `password123` | View timetable, generate class passes, scan live QRs |
 
 ---
 
-## API Reference Overview
+## 📡 Core API Reference
 
 ### Authentication (`/api/v1/auth`)
-- `POST /login`: Authenticate and receive Bearer JWT.
-- `POST /register`: Register a new student, professor, or admin.
-- `GET /me`: Fetch authenticated user profile.
-- `PUT /face-embedding`: Register or update 128-dimensional biometric face vector.
+- `POST /login`: Authenticate and obtain Bearer JWT.
+- `POST /register`: Register user account.
+- `GET /me`: Get authenticated profile.
+- `PUT /profile`: Update full name, academic department, and year of study.
 
-### Server-Driven Flows (`/api/v1/flows`)
-- `GET /student?sessionId=...&hasGps=true&platform=android`: Returns dynamic step-by-step UI schema tailored to session policy and client device capabilities.
-- `GET /professor?sessionId=...`: Returns projector settings and rotation intervals.
-- `PUT /sessions/:sessionId/policy`: Dynamically overrides session verification rules (e.g. toggle biometrics or outdoor geofence).
+### Attendance & Verification (`/api/v1/attendance`)
+- `POST /attempt`: Student submits attendance attempt with scanned QR and telemetry.
+- `GET /student-qr?sessionId=...`: Generate time-bound signed dynamic QR pass for a specific class.
+- `POST /professor-scan`: Professor scans a student pass (with in-batch and out-of-batch verification).
+- `GET /challenges`: Professor review queue for challenged scans.
+- `POST /resolve-challenge`: 1-click accept or reject challenged attempts.
+
+### Cohort Batches & Scheduling (`/api/v1/batches` & `/api/v1/timetable`)
+- `GET /batches`: List batches with department and member count metadata.
+- `POST /batches`: Create new academic cohort with faculty mentor assignments.
+- `GET /batches/my`: Fetch enrolled/mentored batches for the current user.
+- `GET /timetable/my`: Fetch weekly schedule slots for the authenticated student or faculty.
+- `POST /timetable/slots`: Create or update weekly recurring lecture slots.
+- `DELETE /timetable/slots/:id`: Remove schedule slot.
 
 ### Sessions & Cryptographic QR Codes (`/api/v1/sessions`)
-- `GET /`: List sessions (filter by `status` or `courseId`).
-- `GET /:id`: Fetch session details and classroom geofence coordinates.
-- `POST /`: Schedule a new session.
-- `POST /:id/start`: Activate session.
-- `POST /:id/end`: Complete session and trigger materialized view refresh.
-- `GET /:id/qr-code`: Fetch current active signed rotating QR code.
-- `GET /:id/qr-export?format=png|svg|dataUrl&expiresInSeconds=300`: Export signed QR image with custom expiration.
-
-### Attendance Engine (`/api/v1/attendance`)
-- `POST /attempt`: Student submits attempt payload with scanned QR, coordinates, and telemetry.
-- `GET /student-qr?sessionId=...`: Student generates personal time-bound dynamic QR for reverse scan.
-- `POST /professor-scan`: Professor device directly scans student dynamic QR for instant 1-to-1 attendance.
-- `GET /challenges?sessionId=...`: Review queue of flagged attendance attempts.
-- `POST /resolve-challenge`: Professor 1-click approve (`ACCEPT`) or deny (`REJECT`) flagged attempts.
-- `GET /attempts`: Full audit log of all attempts with complete diagnostics.
-- `GET /records`: Official finalized attendance ledger.
-
-### High-Performance Analytics (`/api/v1/analytics`)
-- `GET /student/:studentId`: Query student attendance percentage per course from materialized views.
-- `GET /session/:sessionId`: Query session attendance statistics.
-- `POST /refresh`: Trigger concurrent refresh of materialized views.
-- `GET /security-violations`: Disciplinary audit log of detected mock locations and spoofing events.
+- `POST /launch-slot`: Activate a scheduled timetable slot into a live attendance session.
+- `GET /:id/qr-export?format=dataUrl&expiresInSeconds=900`: Export rotating live broadcast QR image.
+- `POST /:id/end`: Terminate session and refresh materialized views.
 
 ---
 
-## Real-Time WebSocket Protocol (`ws://localhost:4000/ws`)
+## 🗄️ Database Migrations
 
-### 1. Classroom Display Subscription
-Connect to `ws://localhost:4000/ws` and transmit subscription frame:
-```json
-{
-  "type": "SUBSCRIBE",
-  "sessionId": "sess_cs101_active",
-  "role": "DISPLAY"
-}
-```
-
-### 2. Rotating QR Broadcast (Server ➔ Display)
-Pushed automatically every 15 seconds:
-```json
-{
-  "type": "QR_ROTATION",
-  "sessionId": "sess_cs101_active",
-  "qrPayload": "eyJ0eXBlIjoiU0VTU0lPTl9CUk9BRENBU1QiLC...",
-  "qrDataUrl": "data:image/png;base64,iVBORw0KGgo...",
-  "timestamp": 1787804500,
-  "expiresAt": 1787804520,
-  "expiresInSeconds": 20
-}
-```
-
-### 3. Live Check-In Push Event (Server ➔ Professor)
-Emitted instantly whenever a student check-in is evaluated:
-```json
-{
-  "type": "STUDENT_CHECK_IN",
-  "sessionId": "sess_cs101_active",
-  "data": {
-    "attemptId": "att_1787804533548_2qc1jfh",
-    "studentId": "usr_student_sarah",
-    "studentName": "Sarah Connor",
-    "enrollmentId": "STU2026002",
-    "decision": "ACCEPT",
-    "status": "PRESENT",
-    "distanceMeters": 7.1,
-    "timestamp": "2026-08-27T04:22:13.548Z"
-  }
-}
-```
+| Migration File | Description |
+| :--- | :--- |
+| `001_initial_schema.sql` | Users, Courses, Classrooms, Sessions, Enrollments, Audit logs |
+| `002_attendance_and_audit.sql` | Attendance attempts, diagnostic telemetry, QR nonces, policy overrides |
+| `003_materialized_views.sql` | Fast materialized views for course and session analytics |
+| `004_departments_batches_timetables.sql` | Academic departments, batches, batch members, timetable slots |
+| `005_templates_announcements_crud.sql` | Department templates, institutional announcements |
+| `006_fix_courses_and_add_details.sql` | Enhanced course metadata |
+| `007_batch_professors.sql` | Multi-faculty mentor assignment per batch cohort |
+| `008_allow_out_of_batch_professors.sql` | Adds `PROFESSOR_OUT_OF_BATCH` attendance recording support |
