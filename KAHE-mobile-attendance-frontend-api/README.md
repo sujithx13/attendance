@@ -1,23 +1,34 @@
-# KAHE Attendance Mobile
+# KAHE mobile attendance
 
-This Expo/React Native mobile frontend implements the streamlined KAHE attendance experience. The student journey is **scanner-first**: the app collects the classroom QR and permitted device context within a single scan action, then submits one attendance attempt to the supplied service. There are no pledge, separate location, selfie, or learning-plan screens.
+Expo SDK 57 / React Native 0.86 application for students and faculty. The repository root contains the backend; this folder does not run an independent API.
 
-## Run locally
+Start with the [main README](../README.md), [local setup](../docs/LOCAL-SETUP.md), [Android build guide](../docs/ANDROID.md) and [architecture](../docs/ARCHITECTURE.md). Development agents must also read [AGENTS.md](AGENTS.md).
 
-Install dependencies with `npm install`, then use `npm run android`, `npm run ios`, or `npm run web`. The project uses Expo SDK 57 and includes the supplied KAHE logo in `assets/kahelogo.jpeg`.
+```powershell
+npm.cmd ci
+$env:EXPO_PUBLIC_API_URL='http://localhost:4000/api/v1'
+npm.cmd run web -- --port 8081
+```
 
-## Connected API calls
+For a physical phone, use the reachable HTTPS API address. `localhost` on a phone refers to that phone. A standalone APK does not need Metro; the web/development preview does.
 
-| Mobile capability | Endpoint | Status |
-|---|---|---|
-| Sign-in | `POST /auth/login` | Connected; token is held in React state only. |
-| Scanner configuration | `GET /flows/student?sessionId=...` | Connected before student scan use. |
-| Attendance submission | `POST /attendance/attempt` | Connected after a QR is scanned and permitted location context is available. |
-| Personal student QR | `GET /attendance/student-qr?sessionId=...` | Connected; API data URL is rendered directly. |
-| Attendance summaries | `GET /analytics/my-summary` | Connected. |
+Students open a session to scan its classroom QR or select **My QR**. The app reloads attendance status from the API. Faculty start attendance using their current precise location and chosen radius, then show a classroom QR or pair a big screen. Faculty can also scan personal student passes.
 
-The supplied backend contract **does not include** a faculty live-QR generation/export endpoint or a professor roster submission endpoint. The faculty interface therefore supports class label, session ID, expiry input, and an API-ready PNG export path, but correctly reports that it is waiting for a returned faculty QR image rather than fabricating one.
+Source layout:
 
-## Validation
+- `App.tsx`: connection initialization, authentication and navigation.
+- `screens/`: login, home, timetable, selected student session, scanner and profile.
+- `components/`: session cards, personal pass, faculty QR, screen pairing, reusable controls and capture boundary.
+- `lib/api.ts`: requests, response types and server connection handling.
+- `lib/location.ts`: faculty precise-location acquisition.
+- `lib/scanning.ts`: Hermes-safe QR decoding, timeout utility and outcome messages.
+- `lib/connection-storage*`: persisted server address for native/web.
+- `styles.ts`, `theme.ts`: shared visual styles and formatting.
+- `tests/`: Vitest regressions.
 
-TypeScript validation, four unit tests, and a production Expo web export completed successfully. Live testing also confirmed login for both supplied test roles, the student personal QR response, and student attendance analytics. A real attendance attempt was not submitted during validation because doing so would create a live attendance record.
+```powershell
+npm.cmd test
+node node_modules/typescript/bin/tsc --noEmit
+```
+
+The npm package version is independent of Android's application version; release identity is in `app.json`. Current Android preview is 1.0.2 / code 3. Generated native projects and APKs are not tracked. See the Android guide for reproducible local builds, the Windows CMake path workaround and signing requirements.
