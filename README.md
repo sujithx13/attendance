@@ -1,169 +1,135 @@
-# Server-Driven College Attendance & Academic Management System
+# KAHE Attendance
 
-An enterprise-grade, server-authoritative institutional attendance, timetable scheduling, and cohort management platform built with **Node.js, TypeScript, PostgreSQL (with embedded PGlite support), WebSockets, React (Vite Admin Dashboard), and React Native (Expo Mobile App)**.
+A college attendance system with a TypeScript API, a React administration dashboard, an Expo Android application, and a browser-based classroom QR display.
 
----
+Students open a scheduled session, scan its classroom QR, and see their saved attendance status. Faculty can also scan a student's personal pass. When faculty start attendance from the mobile app, their phone's precise location and chosen radius become the fixed location boundary for that session.
 
-## 🏛️ Platform Architecture
+**Current state:** working development/phone-testing implementation; Android preview version **1.0.2**, version code **3**. This repository includes source, migrations and tests. Local databases, secrets, generated Android projects and APKs are intentionally excluded. A Cloudflare tunnel exposes a running API; the backend is not a Cloudflare Worker, and the admin dashboard is a client of the backend.
 
-```text
-├── src/                               # Backend REST API & Real-time WebSockets
-│   ├── config/                        # Environment & server settings
-│   ├── controllers/                   # Auth, Sessions, Attendance, Batches, Timetables, etc.
-│   ├── database/                      # PGlite embedded PostgreSQL database engine & migrations
-│   ├── routes/                        # Express API route declarations
-│   ├── services/                      # Cryptographic QR service, Policy engine, Analytics, etc.
-│   └── types/                         # TypeScript interfaces and SDUI contracts
-│
-├── admin-dashboard/                   # Web-based University Administration Portal
-│   ├── src/components/                # Layouts, Custom ConfirmDialogs, Modals, Forms
-│   ├── src/views/                     # Live Monitor, Departments, Batches, Timetables, Directory
-│   └── src/services/                  # Typed administrative API client
-│
-├── KAHE-mobile-attendance-frontend-api/ # Cross-Platform Mobile Application (Expo / React Native)
-│   ├── App.tsx                        # Emerald-themed native interface & Universal QR Scanner
-│   ├── lib/api.ts                     # Mobile API client with session management
-│   └── lib/navigation.ts              # Role-aware mobile navigation bar
-│
-└── sql/                               # Incremental PostgreSQL database migrations (001 - 008)
+## Documentation
+
+| Document | Read it for |
+| --- | --- |
+| [Local setup](docs/LOCAL-SETUP.md) | Install dependencies, create demo data, run all three applications, troubleshoot ports |
+| [Architecture](docs/ARCHITECTURE.md) | Components, data model, QR contracts, attendance decisions, authorization and location rules |
+| [Online deployment](docs/DEPLOYMENT.md) | Temporary Cloudflare access, stable hosting, PostgreSQL, reverse proxy, backups and operational limits |
+| [Android builds and testing](docs/ANDROID.md) | Standalone APKs, SDK setup, Windows path workaround, signing, installation and physical-device checks |
+| [Work completed](docs/WORK-COMPLETED.md) | Implemented changes, verification and remaining work |
+| [Agent instructions](AGENTS.md) | How to safely continue development and validate changes |
+| [Contributor workflow](CONTRIBUTING.md) | Human development and review workflow |
+| [API guide](docs/API.md) | Main endpoints, authentication and WebSocket messages |
+| [Phone testing notes](PHONE-TESTING.md) | The most recent preview testing snapshot; temporary URLs may expire |
+
+## Applications
+
+| Component | Directory | Default local address |
+| --- | --- | --- |
+| Express API + WebSockets | Repository root, `src/` | `http://localhost:4000` |
+| Administration dashboard | `admin-dashboard/` | `http://localhost:5173` |
+| Expo mobile web preview | `KAHE-mobile-attendance-frontend-api/` | Use port `8081` explicitly |
+| Classroom display | `public/display/`, served by API | `http://localhost:4000/display/` |
+| Database | PGlite by default; external PostgreSQL optional | `data/attendance.db/` or `DATABASE_URL` |
+
+```mermaid
+flowchart LR
+  Mobile[Student / faculty Android app] -->|HTTPS / JSON| API[Express API]
+  Admin[React admin dashboard] -->|REST + WebSocket| API
+  Screen[Classroom browser] -->|Pairing + limited WebSocket| API
+  API --> Database[(PGlite or PostgreSQL)]
+  Tunnel[Optional Cloudflare Tunnel] --> API
 ```
 
----
+## Quick start on Windows PowerShell
 
-## ✨ Key Capabilities & Architectural Highlights
+Use **Node.js 22.13 or later** with npm. Node 22 LTS is a reasonable baseline for this Expo 57 repository. The three directories have independent lockfiles; install dependencies in each. No npm workspace is configured.
 
-### 1. 📷 Universal Bidirectional QR Attendance & Out-of-Batch Verification
-- **Student Class QR Pass**: Students tap any lecture in their timetable to generate a signed dynamic QR pass specifically bound to that session. When any professor scans it, attendance is recorded as **`PRESENT`**.
-- **Faculty Classroom Live Broadcast**: Professors tap any class in their schedule to launch a live rotating cryptographic QR code (HMAC-SHA256, rotating every 15s) for students to scan in the lecture hall.
-- **Universal Smart Scanner**: A single scanner interface in the mobile app that automatically detects whether it's scanning a student pass (for professors) or a classroom broadcast (for students).
-- **Out-of-Batch Professor Override**: Migration `008_allow_out_of_batch_professors.sql` enables any institutional professor to scan students for edge cases/substitute lectures, recording attendance as **`PRESENT`** with audit tracking (`marked_by: 'PROFESSOR_OUT_OF_BATCH'`).
-
-### 2. 🛡️ Five-Layer Fraud Mitigation & Anti-Spoofing Engine
-1. **Time-Bound HMAC-SHA256 Cryptographic Tokens**: Server-signed rotating nonces with atomic replay prevention.
-2. **Spatial Geofencing**: High-precision Haversine distance math with GPS accuracy radius filtering ($\le 35\text{m}$) and border buffer logic.
-3. **Client Mock Location & GPS Spoofing Detection**: Telemetry inspection (`isFromMockProvider`, developer options, fake GPS apps, velocity teleportation detection).
-4. **Policy-Driven Multi-Condition Decision Engine**: Discrete `ACCEPT`, `CHALLENGE`, or `REJECT` state evaluation with structured diagnostics stored per attempt.
-5. **Biometric Face Verification (Optional)**: 128-dimensional vector cosine similarity matching against enrolled student face vectors.
-
-### 3. 🗓️ Academic Cohort Batches & Interactive Timetable Matrix
-- **Flexible Batch Cohorts**: Support multi-department, multi-year cohorts with multiple assigned faculty mentors.
-- **AM/PM 12h Timetable Scheduling**: Weekly matrix (Monday through Saturday) with human-friendly time selectors (`09:00 AM – 10:30 AM`), instant 1-click slot editing, deletion, and session launching.
-- **Sunday Holiday Support**: Context-aware scheduling that identifies weekend holidays on mobile and defaults to the upcoming week.
-
-### 4. 🎨 Modern Design & Reusable Confirmation Dialogs
-- **Institutional Emerald Theme**: Karpagam Green (`#0D631B` / `#16A34A`), elevated white cards, segmented day pickers, and floating navigation dock.
-- **Custom Confirmation Modals**: Built-in high-contrast modal dialogs (`ConfirmDialog` in admin dashboard and `ConfirmModal` / `ResultModal` in mobile app) eliminating raw browser `alert()` and `confirm()` prompts.
-- **Profile Screen View & Edit Modes**: Read-only institutional credentials view by default + on-demand edit mode protected by confirmation popups.
-
-### 5. ⚡ PostgreSQL Materialized Views & Dual-Mode Database
-- **Sub-Millisecond Queries**: Fast queries via PostgreSQL Materialized Views (`mv_student_course_attendance`, `mv_session_attendance_stats`).
-- **Embedded Zero-Config Database**: Runs PostgreSQL 16 WebAssembly via `@electric-sql/pglite` stored locally in `./data/attendance.db`. Or connect to external PostgreSQL clusters by setting `DATABASE_URL`.
-
----
-
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- **Node.js**: v18+ (tested on Node.js v20 / v22 / v26)
-- **npm**: v9+
-
----
-
-### 1. Backend Server Setup
-
-```bash
-# Navigate to the workspace root and install dependencies
-npm install
-
-# Start the Backend Server (Runs on port 4000)
-npm run dev
-# Or build and run production bundle:
-npm run build && node dist/server.js
+```powershell
+git clone https://github.com/PradFr/attendance.git
+cd attendance
+npm.cmd ci
+Copy-Item .env.example .env
+npm.cmd run seed
+npm.cmd run dev
 ```
-- **REST API**: `http://localhost:4000/api/v1`
-- **WebSocket Server**: `ws://localhost:4000/ws`
-- **Health Check**: `http://localhost:4000/health`
 
----
+The seed command is for a new disposable demo database. It writes to the configured database; do not run it against existing institutional data. API startup applies numbered migrations automatically but does not create demo users.
 
-### 2. Admin Dashboard Setup
+In a second terminal:
 
-```bash
-# Open a new terminal in admin-dashboard
+```powershell
+cd attendance/admin-dashboard
+npm.cmd ci
+npm.cmd run dev
+```
+
+In a third terminal:
+
+```powershell
+cd attendance/KAHE-mobile-attendance-frontend-api
+npm.cmd ci
+$env:EXPO_PUBLIC_API_URL='http://localhost:4000/api/v1'
+npm.cmd run web -- --port 8081
+```
+
+Open the dashboard at `http://localhost:5173` and the mobile preview at `http://localhost:8081`. Check the API at `http://localhost:4000/health`. The web preview is useful for layout and navigation; native camera, GPS and screenshot protection need an Android phone.
+
+On Linux/macOS, first set `export npm_config_script_shell=/bin/sh`: the tracked root `.npmrc` selects PowerShell for the original Windows environment. Then use `npm` instead of `npm.cmd` and `cp .env.example .env`. See the [full platform instructions](docs/LOCAL-SETUP.md).
+
+## Demo sign-in
+
+After seeding a disposable database, these accounts use `password123`:
+
+| Role | Email |
+| --- | --- |
+| Administrator | `admin@university.edu` |
+| Faculty | `prof.alan@university.edu` |
+| Faculty | `prof.ada@university.edu` |
+| Student | `student.john@university.edu` |
+| Student | `student.emily@university.edu` |
+
+Use the admin dashboard for administration and the mobile app for student/faculty flows. Account creation is admin-authenticated. Production requires real accounts and unique secrets; a seeded demo database is not a production installation.
+
+## Attendance workflow
+
+1. Admin configures departments, courses, classrooms, enrollments, batches and timetable slots.
+2. Faculty open a session on their phone, select a radius of 25m, 50m or 100m, grant precise location and select **Start attendance here**.
+3. The API stores that phone location and radius once. QR refreshes and reopening the session do not move it.
+4. Faculty show the classroom QR directly or pair a larger browser display using **Show on big screen**.
+5. An enrolled student opens the same session. **Scan classroom QR** is selected; **My QR** displays a personal pass for a professor to scan.
+6. Student scans are evaluated by the backend. A saved accepted record shows **Marked present**. Review requests show **Pending approval**; an unmarked session shows **Not marked**.
+7. Status reloads from the database, including attendance recorded by a professor scanning the student's pass.
+
+Being near a PC is relevant only if it is near the professor's captured starting location. A GPS accuracy message such as `300m > 35m` describes the phone's uncertainty, not its distance from the screen. Enable precise location and improve the GPS fix.
+
+## Verification
+
+```powershell
+# From repository root: isolated, in-memory backend database
+npm.cmd test
+npm.cmd run build
+
 cd admin-dashboard
-npm install
+npm.cmd run build
 
-# Start the Vite development server (Runs on port 5173)
-npm run dev
+cd ../KAHE-mobile-attendance-frontend-api
+npm.cmd test
+node node_modules/typescript/bin/tsc --noEmit
 ```
-- **Admin Portal**: `http://localhost:5173`
 
----
+The backend suite exercises real HTTP and WebSocket authorization as well as policy, replay protection, rollback, classroom pairing, professor location, personal passes and saved status. The mobile suite currently has 28 tests. Database regressions run on PGlite; an external PostgreSQL deployment and real Android devices need their own acceptance checks.
 
-### 3. Mobile App (Expo / React Native) Setup
+## Internet access and hosting
 
-```bash
-# Open a new terminal in KAHE-mobile-attendance-frontend-api
-cd KAHE-mobile-attendance-frontend-api
-npm install
+A standalone APK bundles its own interface. It needs a reachable HTTPS API, not Expo Go or Metro. For a short test, run the API and `cloudflared tunnel --url http://127.0.0.1:4000`. Configure the printed address in the app's **Server connection** field or at build time. Keep the computer and both processes online.
 
-# Start Expo dev server with LAN and Web support (Runs on port 8081)
-npx expo start --host lan --web
-```
-- **Mobile Web App**: `http://localhost:8081` (or `http://<YOUR_LOCAL_IP>:8081`)
-- **Native Mobile**: Scan the displayed terminal QR code using the **Expo Go** app on iOS or Android.
+For ongoing use, deploy the Node API with persistent storage or external PostgreSQL, HTTPS and WebSocket support. Serve the built admin dashboard with `/api/v1` and `/ws` routed to the API. See [deployment instructions](docs/DEPLOYMENT.md). No permanent cloud deployment or stable domain is included in this repository.
 
----
+## Current limits
 
-## 🔑 Default Credentials
+- Screenshot blocking is native OS protection; browsers cannot enforce it, and another camera can photograph a screen.
+- Client GPS and mock-location flags are signals, not hardware attestation. Indoor or approximate location can fail precision checks.
+- Biometric comparison and BLE-related policy structures exist; a complete mobile face/liveness/BLE capture workflow is not implemented. The scanner directs those policies to professor verification.
+- Display pairing rate limiting and real-time fan-out are process-local. Multiple API replicas require coordinated state and messaging.
+- Production hardening remains: restricted CORS, general auth rate limiting, secure account bootstrap, privacy/retention rules, release signing, monitoring, durable backups and external PostgreSQL acceptance testing.
 
-| Role | Email | Password | Access Details |
-| :--- | :--- | :--- | :--- |
-| **System Administrator** | `admin@university.edu` | `password123` | Full access to Admin Dashboard |
-| **Faculty / Professor** | `prof.alan@university.edu` | `password123` | Broadcast Live Class QRs, scan student passes |
-| **Student** | `student.john@university.edu` | `password123` | View timetable, generate class passes, scan live QRs |
-
----
-
-## 📡 Core API Reference
-
-### Authentication (`/api/v1/auth`)
-- `POST /login`: Authenticate and obtain Bearer JWT.
-- `POST /register`: Register user account.
-- `GET /me`: Get authenticated profile.
-- `PUT /profile`: Update full name, academic department, and year of study.
-
-### Attendance & Verification (`/api/v1/attendance`)
-- `POST /attempt`: Student submits attendance attempt with scanned QR and telemetry.
-- `GET /student-qr?sessionId=...`: Generate time-bound signed dynamic QR pass for a specific class.
-- `POST /professor-scan`: Professor scans a student pass (with in-batch and out-of-batch verification).
-- `GET /challenges`: Professor review queue for challenged scans.
-- `POST /resolve-challenge`: 1-click accept or reject challenged attempts.
-
-### Cohort Batches & Scheduling (`/api/v1/batches` & `/api/v1/timetable`)
-- `GET /batches`: List batches with department and member count metadata.
-- `POST /batches`: Create new academic cohort with faculty mentor assignments.
-- `GET /batches/my`: Fetch enrolled/mentored batches for the current user.
-- `GET /timetable/my`: Fetch weekly schedule slots for the authenticated student or faculty.
-- `POST /timetable/slots`: Create or update weekly recurring lecture slots.
-- `DELETE /timetable/slots/:id`: Remove schedule slot.
-
-### Sessions & Cryptographic QR Codes (`/api/v1/sessions`)
-- `POST /launch-slot`: Activate a scheduled timetable slot into a live attendance session.
-- `GET /:id/qr-export?format=dataUrl&expiresInSeconds=900`: Export rotating live broadcast QR image.
-- `POST /:id/end`: Terminate session and refresh materialized views.
-
----
-
-## 🗄️ Database Migrations
-
-| Migration File | Description |
-| :--- | :--- |
-| `001_initial_schema.sql` | Users, Courses, Classrooms, Sessions, Enrollments, Audit logs |
-| `002_attendance_and_audit.sql` | Attendance attempts, diagnostic telemetry, QR nonces, policy overrides |
-| `003_materialized_views.sql` | Fast materialized views for course and session analytics |
-| `004_departments_batches_timetables.sql` | Academic departments, batches, batch members, timetable slots |
-| `005_templates_announcements_crud.sql` | Department templates, institutional announcements |
-| `006_fix_courses_and_add_details.sql` | Enhanced course metadata |
-| `007_batch_professors.sql` | Multi-faculty mentor assignment per batch cohort |
-| `008_allow_out_of_batch_professors.sql` | Adds `PROFESSOR_OUT_OF_BATCH` attendance recording support |
+Read [the completed-work and remaining-work record](docs/WORK-COMPLETED.md) before extending or deploying the system.

@@ -1,3 +1,5 @@
+> Historical notes from an earlier mobile prototype. Some described screens and simulated verification flows have been replaced. For the current implementation, validation evidence and remaining work, read [Work completed](../docs/WORK-COMPLETED.md), [Architecture](../docs/ARCHITECTURE.md) and [Android testing](../docs/ANDROID.md). These historical entries do not establish physical-device verification of the current build.
+
 # KAHE Mobile Attendance App — Delivery Checklist
 
 - [x] Review the mobile application scaffold and design conventions.

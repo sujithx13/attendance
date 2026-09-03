@@ -1,3 +1,5 @@
+> Historical notes from an earlier mobile prototype. Some described screens and simulated verification flows have been replaced. For the current implementation, validation evidence and remaining work, read [Work completed](../docs/WORK-COMPLETED.md), [Architecture](../docs/ARCHITECTURE.md) and [Android testing](../docs/ANDROID.md). These historical entries do not establish physical-device verification of the current build.
+
 # Mobile Preview Verification Notes
 
 The Expo web preview loaded successfully after the bundle completed. The KAHE logo, logo-derived palette, touch navigation, student dashboard, and attendance flow all rendered without console errors.
