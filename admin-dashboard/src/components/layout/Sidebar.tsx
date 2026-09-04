@@ -22,13 +22,14 @@ export type NavView =
 interface SidebarProps {
   currentView: NavView;
   onNavigate: (view: NavView) => void;
+  open?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open }) => {
   const { logout } = useAuth();
 
   return (
-    <aside className="sidebar">
+    <aside id="admin-navigation" className={`sidebar ${open ? 'sidebar-open' : ''}`}>
       {/* Official KAHE Logo Header */}
       <div className="sidebar-header">
         <img
@@ -49,8 +50,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         </div>
       </div>
 
-      <nav className="sidebar-nav">
-        <div className="nav-section-title">EXECUTIVE PORTAL</div>
+      <nav className="sidebar-nav" aria-label="Main navigation">
+        <div className="nav-section-title">WORKSPACE</div>
 
         <button
           className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
@@ -58,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         >
           <div className="nav-item-content">
             <LayoutDashboard size={17} />
-            <span>Campus Overview</span>
+            <span>Overview</span>
           </div>
           {currentView === 'dashboard' && <ChevronRight size={14} />}
         </button>
@@ -69,12 +70,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         >
           <div className="nav-item-content">
             <Users2 size={17} />
-            <span>Student & Faculty Roster</span>
+            <span>Students & faculty</span>
           </div>
           {currentView === 'directory' && <ChevronRight size={14} />}
         </button>
 
-        <div className="nav-section-title">ACADEMIC COHORTS</div>
+        <div className="nav-section-title">ACADEMICS</div>
 
         <button
           className={`nav-item ${currentView === 'batches' ? 'active' : ''}`}
@@ -82,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         >
           <div className="nav-item-content">
             <Users size={17} />
-            <span>Flexible Batches</span>
+            <span>Batches</span>
           </div>
           {currentView === 'batches' && <ChevronRight size={14} />}
         </button>
@@ -93,12 +94,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         >
           <div className="nav-item-content">
             <Building2 size={17} />
-            <span>Academic Departments</span>
+            <span>Departments</span>
           </div>
           {currentView === 'departments' && <ChevronRight size={14} />}
         </button>
 
-        <div className="nav-section-title">SCHEDULING & AUDIT</div>
+        <div className="nav-section-title">ATTENDANCE</div>
 
         <button
           className={`nav-item ${currentView === 'templates' ? 'active' : ''}`}
@@ -106,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         >
           <div className="nav-item-content">
             <CalendarDays size={17} />
-            <span>Timetable & Scheduling</span>
+            <span>Timetable</span>
           </div>
           {currentView === 'templates' && <ChevronRight size={14} />}
         </button>
@@ -117,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
         >
           <div className="nav-item-content">
             <Activity size={17} />
-            <span>Live Monitor & Audit</span>
+            <span>Live attendance</span>
           </div>
           {currentView === 'monitor' && <ChevronRight size={14} />}
         </button>
@@ -130,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
           onClick={logout}
         >
           <LogOut size={15} />
-          <span>Sign Out Administrator</span>
+          <span>Sign out</span>
         </button>
       </div>
     </aside>

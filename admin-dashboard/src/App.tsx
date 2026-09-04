@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.js';
 import { Sidebar, type NavView } from './components/layout/Sidebar.js';
 import { Topbar } from './components/layout/Topbar.js';
@@ -14,6 +14,13 @@ import { ShieldCheck } from 'lucide-react';
 const DashboardContent: React.FC = () => {
   const { user, token, loading } = useAuth();
   const [currentView, setCurrentView] = useState<NavView>('dashboard');
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const navigate = (view: NavView) => { setCurrentView(view); setNavigationOpen(false); };
+  useEffect(() => {
+    const closeNavigation = (event: KeyboardEvent) => { if (event.key === 'Escape') setNavigationOpen(false); };
+    window.addEventListener('keydown', closeNavigation);
+    return () => window.removeEventListener('keydown', closeNavigation);
+  }, []);
 
   if (loading) {
     return (
@@ -44,21 +51,22 @@ const DashboardContent: React.FC = () => {
   }
 
   const titles: Record<NavView, string> = {
-    dashboard: 'Executive Campus Overview & Analytics',
-    directory: 'Student & Teacher Roster Directory',
-    batches: 'Batches & Cross-Disciplinary Cohorts',
-    departments: 'University Academic Departments',
-    templates: 'Timetable & Scheduling Matrix',
-    monitor: 'Campus Live Telemetry & Disciplinary Audit'
+    dashboard: 'Campus overview',
+    directory: 'Students & faculty',
+    batches: 'Batches',
+    departments: 'Departments',
+    templates: 'Timetable',
+    monitor: 'Live attendance'
   };
 
   return (
     <div className="app-container">
-      <Sidebar currentView={currentView} onNavigate={setCurrentView} />
+      {navigationOpen && <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
+      <Sidebar currentView={currentView} onNavigate={navigate} open={navigationOpen} />
       <div className="main-wrapper">
-        <Topbar title={titles[currentView]} />
+        <Topbar title={titles[currentView]} navigationOpen={navigationOpen} onToggleNavigation={() => setNavigationOpen(!navigationOpen)} />
         <main className="content-viewport">
-          {currentView === 'dashboard' && <DashboardOverview onNavigate={setCurrentView} />}
+          {currentView === 'dashboard' && <DashboardOverview onNavigate={navigate} />}
           {currentView === 'directory' && <DirectoryView />}
           {currentView === 'batches' && <BatchesView />}
           {currentView === 'departments' && <DepartmentsView />}

@@ -405,6 +405,10 @@ class ApiClient {
   }
 
   // Analytics & Security Violations
+  async getLiveSummary(): Promise<{ activeSessions: number; checkInsToday: number }> {
+    return this.request('/analytics/live-summary');
+  }
+
   async getSecurityViolations(): Promise<{ violations: SecurityViolation[] }> {
     return this.request<{ violations: SecurityViolation[] }>('/analytics/security-violations');
   }

@@ -29,22 +29,27 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [generating, setGenerating] = useState(false);
   const [genMessage, setGenMessage] = useState('');
+  const [slotCount, setSlotCount] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     const loadOverviewData = async () => {
       try {
-        const [usersRes, deptRes, batchRes, annRes] = await Promise.all([
+        const [usersRes, deptRes, batchRes, annRes, timetableRes] = await Promise.all([
           api.getUsers(),
           api.getDepartments(),
           api.getBatches(),
-          api.getAnnouncements()
+          api.getAnnouncements(),
+          api.getTimetableSlots()
         ]);
         setUsers(usersRes.users || []);
         setDepartments(deptRes.departments || []);
         setBatches(batchRes.batches || []);
         setAnnouncements(annRes.announcements || []);
+        setSlotCount(timetableRes.slots.length);
       } catch (err) {
         console.error('Failed to load dashboard overview data', err);
+        setLoadError('Some overview data could not load. Refresh the page to try again.');
       }
     };
     loadOverviewData();
@@ -69,6 +74,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      {loadError && <div role="alert" className="login-error">{loadError}</div>}
       {/* Welcome Banner */}
       <div
         style={{
@@ -86,14 +92,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <span className="badge badge-emerald">CAMPUS CENTRAL HUB</span>
+            <span className="badge badge-emerald">CAMPUS OVERVIEW</span>
             <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>Odd Semester 2026-27</span>
           </div>
           <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--on-surface)' }}>
-            Welcome to Karpagam Executive Portal
+            Your campus at a glance
           </h2>
           <p style={{ fontSize: '13.5px', color: 'var(--secondary)', marginTop: '6px', maxWidth: '640px', lineHeight: '1.5' }}>
-            Central administration console for student and teacher rosters, departmental curricula, cross-departmental cohorts, timetable templates, and live attendance telemetry.
+            Manage people, organize classes and keep track of attendance from one workspace.
           </p>
         </div>
 
@@ -104,7 +110,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           disabled={generating}
         >
           <Zap size={16} />
-          <span>{generating ? 'Spawning Sessions…' : 'Generate Daily Sessions from Timetable'}</span>
+          <span>{generating ? 'Spawning Sessions…' : "Prepare today's sessions"}</span>
         </button>
       </div>
 
@@ -187,20 +193,20 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             <CalendarCheck size={20} color="var(--primary-container)" />
           </div>
           <div style={{ fontSize: '34px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            Active
+            {slotCount ?? '—'}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--primary-container)', marginTop: '4px' }}>
-            Automated Weekly Matrix
+            Scheduled timetable slots
           </div>
         </div>
       </div>
 
       {/* Quick Launch & Announcements Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      <div className="overview-secondary-grid">
         {/* Quick Management Shortcuts */}
         <div className="card" style={{ padding: '24px' }}>
           <h3 className="card-title" style={{ marginBottom: '18px' }}>
-            <span>Quick Cohort & Roster Operations</span>
+            <span>Quick actions</span>
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -211,7 +217,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <UserPlus size={16} color="var(--primary-container)" />
-                <span style={{ fontWeight: 600 }}>Manage Student & Faculty Directory</span>
+                <span style={{ fontWeight: 600 }}>Manage students & faculty</span>
               </div>
               <ArrowRight size={14} color="var(--secondary)" />
             </button>
@@ -223,7 +229,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Plus size={16} color="var(--accent-purple)" />
-                <span style={{ fontWeight: 600 }}>Configure New Cross-Dept Batch</span>
+                <span style={{ fontWeight: 600 }}>Create a batch</span>
               </div>
               <ArrowRight size={14} color="var(--secondary)" />
             </button>
@@ -235,7 +241,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <CalendarCheck size={16} color="var(--warning)" />
-                <span style={{ fontWeight: 600 }}>Assign Timetable Template to Cohort</span>
+                <span style={{ fontWeight: 600 }}>Manage timetables</span>
               </div>
               <ArrowRight size={14} color="var(--secondary)" />
             </button>
@@ -247,7 +253,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <ShieldAlert size={16} color="var(--error)" />
-                <span style={{ fontWeight: 600 }}>Review Security Audit & Anti-Spoofing Feed</span>
+                <span style={{ fontWeight: 600 }}>View attendance alerts</span>
               </div>
               <ArrowRight size={14} color="var(--secondary)" />
             </button>
@@ -259,7 +265,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
             <h3 className="card-title">
               <Bell size={18} color="var(--primary-container)" />
-              <span>Campus & Cohort Notices</span>
+              <span>Campus notices</span>
             </h3>
             <span className="badge badge-emerald">
               {announcements.length} active notices

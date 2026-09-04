@@ -1,12 +1,14 @@
 import React from 'react';
-import { Calendar, ShieldCheck } from 'lucide-react';
+import { Calendar, ShieldCheck, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.js';
 
 interface TopbarProps {
   title: string;
+  navigationOpen: boolean;
+  onToggleNavigation: () => void;
 }
 
-export const Topbar: React.FC<TopbarProps> = ({ title }) => {
+export const Topbar: React.FC<TopbarProps> = ({ title, navigationOpen, onToggleNavigation }) => {
   const { user } = useAuth();
   const todayStr = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -18,15 +20,13 @@ export const Topbar: React.FC<TopbarProps> = ({ title }) => {
   return (
     <header className="topbar">
       <div className="topbar-left">
+        <button className="navigation-toggle" onClick={onToggleNavigation} aria-label={navigationOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={navigationOpen} aria-controls="admin-navigation">{navigationOpen ? <X size={22} /> : <Menu size={22} />}</button>
         <h1 className="topbar-title">{title}</h1>
-        <div className="status-pill">
-          <div className="status-dot" />
-          <span>Core Campus Engine Active</span>
-        </div>
       </div>
 
       <div className="topbar-right">
         <div
+          className="topbar-date"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -54,7 +54,7 @@ export const Topbar: React.FC<TopbarProps> = ({ title }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <ShieldCheck size={10} color="var(--primary-container)" />
               <span style={{ fontSize: '10px', color: 'var(--primary-container)', fontWeight: 700, letterSpacing: '0.04em' }}>
-                SUPER ADMIN
+                Administrator
               </span>
             </div>
           </div>

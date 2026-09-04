@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -18,17 +18,22 @@ export const Modal: React.FC<ModalProps> = ({
   footer,
   maxWidth = '540px'
 }) => {
+  const titleId = useId();
+  const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleKeyDown);
+      dialog.current?.focus();
     }
     return () => {
       document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleKeyDown);
+      if (isOpen) previousFocus?.focus();
     };
   }, [isOpen, onClose]);
 
@@ -37,14 +42,20 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
+        ref={dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className="modal-content"
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h3>{title}</h3>
+          <h3 id={titleId}>{title}</h3>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             style={{
               background: 'transparent',
               border: 'none',

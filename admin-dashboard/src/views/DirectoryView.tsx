@@ -33,7 +33,7 @@ export const DirectoryView: React.FC = () => {
   // Form Fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<'STUDENT' | 'PROFESSOR'>('STUDENT');
   const [departmentId, setDepartmentId] = useState('');
   const [yearOfStudy, setYearOfStudy] = useState<number>(1);
@@ -66,7 +66,7 @@ export const DirectoryView: React.FC = () => {
     setTargetUserId(null);
     setFullName('');
     setEmail('');
-    setPassword('password123');
+    setPassword('');
     setRole('STUDENT');
     setYearOfStudy(1);
     setEnrollmentId(`STU${new Date().getFullYear()}${Math.floor(100 + Math.random() * 900)}`);
@@ -175,15 +175,15 @@ export const DirectoryView: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Student & Teacher Roster Directory</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Students & faculty</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Comprehensive institutional roster with departmental categorization, academic year sorting, and credential administration.
+            Find and manage people by role, department or year.
           </p>
         </div>
 
         <button className="btn btn-primary" onClick={handleOpenCreate}>
           <Plus size={16} />
-          <span>Register Student / Faculty</span>
+          <span>Add a member</span>
         </button>
       </div>
 
@@ -444,11 +444,12 @@ export const DirectoryView: React.FC = () => {
             <div className="form-group">
               <label className="form-label">INITIAL PASSWORD</label>
               <input
-                type="text"
+                type="password"
+                autoComplete="new-password"
                 className="form-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="password123"
+                placeholder="Set an initial password"
                 required
               />
             </div>

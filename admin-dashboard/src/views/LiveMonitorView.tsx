@@ -10,40 +10,52 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import type { SecurityViolation } from '../types/index.js';
+import { useAuth } from '../context/AuthContext.js';
 
 export const LiveMonitorView: React.FC = () => {
+  const { token } = useAuth();
+  const [summary, setSummary] = useState<{ activeSessions: number; checkInsToday: number } | null>(null);
+  const [error, setError] = useState('');
   const [violations, setViolations] = useState<SecurityViolation[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
   const [recentEvents, setRecentEvents] = useState<{ id: string; text: string; time: string }[]>([]);
 
   const fetchAuditData = async () => {
     try {
-      const res = await api.getSecurityViolations();
+      const [res, counts] = await Promise.all([api.getSecurityViolations(), api.getLiveSummary()]);
       setViolations(res.violations || []);
+      setSummary(counts);
+      setError('');
     } catch {
-      setViolations([]);
+      setError('Live data could not be refreshed. Previously loaded data may be out of date.');
     }
   };
 
   useEffect(() => {
     fetchAuditData();
+    const poll = window.setInterval(fetchAuditData, 15000);
+    let retry: number | undefined;
+    let disposed = false;
 
     // Connect to live WebSocket
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
 
     let ws: WebSocket | null = null;
-    try {
+    const connect = () => { try {
       ws = new WebSocket(wsUrl);
-      ws.onopen = () => setWsConnected(true);
-      ws.onclose = () => setWsConnected(false);
+      ws.onopen = () => ws?.send(JSON.stringify({ type: 'SUBSCRIBE', sessionId: 'CAMPUS', token }));
+      ws.onclose = () => { setWsConnected(false); if (!disposed) retry = window.setTimeout(connect, 5000); };
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          if (data.type === 'SUBSCRIBED') { setWsConnected(true); return; }
+          if (data.type === 'ERROR') { setError(data.message); return; }
+          fetchAuditData();
           setRecentEvents((prev) => [
             {
               id: Math.random().toString(),
-              text: `Event [${data.type || 'ATTENDANCE'}]: ${data.message || 'New campus activity detected'}`,
+              text: data.data ? `${data.data.studentName || 'Student'}: ${data.data.status} — ${data.data.decisionReason || ''}` : (data.message || data.type),
               time: new Date().toLocaleTimeString()
             },
             ...prev.slice(0, 15)
@@ -54,21 +66,26 @@ export const LiveMonitorView: React.FC = () => {
       };
     } catch {
       setWsConnected(false);
-    }
+    } };
+    connect();
 
     return () => {
+      disposed = true;
+      window.clearInterval(poll);
+      window.clearTimeout(retry);
       if (ws) ws.close();
     };
-  }, []);
+  }, [token]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      {error && <div role="alert" style={{ color: 'var(--error)' }}>{error}</div>}
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Campus Live Monitor & Security Audit</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Live attendance & alerts</h2>
           <p style={{ fontSize: '14px', color: 'var(--secondary)', marginTop: '4px' }}>
-            Real-time biometric, geofencing, and disciplinary audit streams across all campus attendance sessions.
+            Live attendance events and recorded verification alerts across campus sessions.
           </p>
         </div>
 
@@ -105,10 +122,10 @@ export const LiveMonitorView: React.FC = () => {
             <Activity size={18} color="var(--primary-container)" />
           </div>
           <div style={{ fontSize: '32px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            2
+            {summary?.activeSessions ?? '—'}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--primary-container)', marginTop: '4px' }}>
-            CS101 (Turing Hall) & AI Batch (Lovelace Lab)
+            Current active attendance sessions
           </div>
         </div>
 
@@ -118,10 +135,10 @@ export const LiveMonitorView: React.FC = () => {
             <Users size={18} color="var(--info)" />
           </div>
           <div style={{ fontSize: '32px', fontWeight: 800, marginTop: '8px', color: 'var(--on-surface)' }}>
-            48
+            {summary?.checkInsToday ?? '—'}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--info)', marginTop: '4px' }}>
-            97.8% verified via Cryptographic Rotating QR
+            Recorded present or late today
           </div>
         </div>
 
@@ -134,7 +151,7 @@ export const LiveMonitorView: React.FC = () => {
             {violations.length}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--error)', marginTop: '4px' }}>
-            Recorded in immutable disciplinary audit ledger
+            Latest recorded verification alerts
           </div>
         </div>
       </div>
@@ -144,10 +161,10 @@ export const LiveMonitorView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <h3 className="card-title">
             <ShieldAlert size={18} color="var(--error)" />
-            <span>Disciplinary Security Audit Log</span>
+            <span>Verification alerts</span>
           </h3>
           <span className="badge badge-emerald">
-            Zero-Trust Anomaly Detection
+            Attendance verification
           </span>
         </div>
 
@@ -166,7 +183,7 @@ export const LiveMonitorView: React.FC = () => {
               {violations.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', color: 'var(--secondary)', padding: '36px' }}>
-                    No security violations flagged. All sessions operating with genuine telemetry.
+                    {error ? 'Audit data is unavailable. Retry using Refresh.' : 'No recorded violations in the latest 100 audit entries.'}
                   </td>
                 </tr>
               ) : (
@@ -219,7 +236,7 @@ export const LiveMonitorView: React.FC = () => {
       <div className="card" style={{ padding: '24px' }}>
         <h3 className="card-title" style={{ marginBottom: '16px' }}>
           <Activity size={17} color="var(--primary-container)" />
-          <span>Real-Time Campus Telemetry Feed</span>
+          <span>Recent activity</span>
         </h3>
 
         {recentEvents.length === 0 ? (

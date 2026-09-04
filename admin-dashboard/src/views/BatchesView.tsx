@@ -977,7 +977,7 @@ export const BatchesView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 4: EDITABLE COHORT TIMETABLE */}
+            {/* TAB 4: EDITABLE YOUR SCHEDULE */}
             {activeTab === 'timetable' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
