@@ -16,6 +16,8 @@ import timetableRoutes from './routes/timetable.routes.js';
 import userRoutes from './routes/user.routes.js';
 import templateRoutes from './routes/template.routes.js';
 import announcementRoutes from './routes/announcement.routes.js';
+import displayRoutes from './routes/display.routes.js';
+import path from 'node:path';
 
 export function createApp(): Express {
   const app = express();
@@ -24,6 +26,16 @@ export function createApp(): Express {
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use('/display', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    next();
+  }, express.static(path.resolve(process.cwd(), 'public', 'display')));
+  app.get('/downloads/kahe-attendance-preview.apk', (_req, res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.download(path.resolve(process.cwd(), 'artifacts', 'kahe-attendance-preview.apk'));
+  });
 
   // Health check endpoint
   app.get('/health', (req, res) => {
@@ -67,6 +79,7 @@ export function createApp(): Express {
 
   // Mount API v1 routes
   app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/display', displayRoutes);
   app.use('/api/v1/flows', flowRoutes);
   app.use('/api/v1/sessions', sessionRoutes);
   app.use('/api/v1/attendance', attendanceRoutes);

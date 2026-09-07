@@ -1,16 +1,25 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'node:crypto';
 
 // Load .env file
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+function secret(name: string): string {
+  const value = process.env[name];
+  if (process.env.NODE_ENV === 'production' && (!value || value.length < 32 || /university_super_secret|rotating_qr_hmac_secret/.test(value))) {
+    throw new Error(`${name} must be configured with a unique secret of at least 32 characters.`);
+  }
+  return value || crypto.randomBytes(32).toString('hex');
+}
 
 export const ENV = {
   PORT: parseInt(process.env.PORT || '4000', 10),
   HOST: process.env.HOST || '0.0.0.0',
   NODE_ENV: process.env.NODE_ENV || 'development',
   DATABASE_URL: process.env.DATABASE_URL || '',
-  JWT_SECRET: process.env.JWT_SECRET || 'university_super_secret_jwt_attendance_2026',
-  QR_HMAC_SECRET: process.env.QR_HMAC_SECRET || 'rotating_qr_hmac_secret_university_2026',
+  JWT_SECRET: secret('JWT_SECRET'),
+  QR_HMAC_SECRET: secret('QR_HMAC_SECRET'),
   
   // Geofence & Sensor thresholds
   GEOFENCE_DEFAULT_RADIUS_METERS: parseFloat(process.env.GEOFENCE_DEFAULT_RADIUS_METERS || '25.0'),

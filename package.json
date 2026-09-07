@@ -5,12 +5,12 @@
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "dev": "node node_modules/tsx/dist/cli.mjs watch src/server.ts",
+    "build": "node node_modules/typescript/bin/tsc",
     "start": "node dist/server.js",
-    "migrate": "tsx src/database/migrate.ts",
-    "seed": "tsx src/database/seed.ts",
-    "test": "tsx tests/run-all-tests.ts"
+    "migrate": "node node_modules/tsx/dist/cli.mjs src/database/migrate.ts",
+    "seed": "node node_modules/tsx/dist/cli.mjs src/database/seed.ts",
+    "test": "node node_modules/tsx/dist/cli.mjs tests/run-isolated.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

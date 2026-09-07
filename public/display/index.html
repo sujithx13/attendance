@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KAHE Classroom Display</title><link rel="stylesheet" href="/display/style.css"><script defer src="/display/app.js"></script></head>
+<body>
+  <header><span class="brand">KAHE <strong>Attendance</strong></span><button id="fullscreen" type="button">Full screen</button></header>
+  <main>
+    <section id="pairing" aria-labelledby="pairing-title"><span class="eyebrow">CLASSROOM DISPLAY</span><h1 id="pairing-title">Connect your classroom</h1><p>In the faculty app, start a class and choose <strong>Show on big screen</strong>.<br>Enter this pairing code on your phone.</p><div id="pairing-code" aria-live="polite">Connecting...</div><p id="pairing-status" role="status">Preparing a secure connection</p><button id="new-code" type="button" hidden>Get a new code</button></section>
+    <section id="live" hidden aria-labelledby="class-title"><div class="live-heading"><span class="eyebrow">SCAN TO MARK ATTENDANCE</span><h1 id="class-title">Classroom attendance</h1><p id="classroom"></p><button id="disconnect" type="button">Disconnect this screen</button></div><div class="live-code"><div class="qr-frame"><img id="qr" alt="Live classroom attendance QR code" hidden><span id="qr-message" role="status">Waiting for a fresh QR...</span></div><p id="live-status" role="status">Connecting...</p><p class="note">Open Scan QR in your student app. This code refreshes automatically.</p></div></section>
+  </main><footer>The faculty app controls this display. No student records are shown here.</footer>
+</body></html>

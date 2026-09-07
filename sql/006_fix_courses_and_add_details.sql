@@ -17,9 +17,9 @@ ALTER TABLE courses ADD COLUMN IF NOT EXISTS learning_outcomes TEXT;
 UPDATE courses SET title = name WHERE title IS NULL;
 
 -- 3. Link existing seeded courses to CSE department and Prof. Alan Turing
-UPDATE courses 
-SET department_id = 'dept_cse', 
-    professor_id = 'usr_prof_alan',
+UPDATE courses
+SET department_id = (SELECT id FROM departments WHERE code = 'CSE' LIMIT 1),
+    professor_id = (SELECT id FROM users WHERE email = 'prof.alan@university.edu' OR id = 'usr_prof_alan' LIMIT 1),
     credits = 4,
     description = 'Comprehensive core curriculum course covering fundamental computational structures, theoretical foundations, and modern software engineering paradigms.',
     prerequisites = 'Basic Mathematics & Fundamentals of Computing',
