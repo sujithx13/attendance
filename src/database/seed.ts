@@ -25,6 +25,12 @@ export async function seedDatabase(): Promise<void> {
   ];
 
   for (const d of departments) {
+    const existing = await db.query(`SELECT id FROM departments WHERE code = $1`, [d.code]);
+    if (existing.rows.length > 0 && existing.rows[0].id !== d.id) {
+      await db.query(`UPDATE users SET department_id = NULL WHERE department_id = $1`, [existing.rows[0].id]);
+      await db.query(`UPDATE batches SET department_id = NULL WHERE department_id = $1`, [existing.rows[0].id]);
+      await db.query(`DELETE FROM departments WHERE id = $1`, [existing.rows[0].id]);
+    }
     await db.query(
       `INSERT INTO departments (id, code, name) VALUES ($1, $2, $3)
        ON CONFLICT (id) DO UPDATE SET code = EXCLUDED.code, name = EXCLUDED.name`,
@@ -108,11 +114,12 @@ export async function seedDatabase(): Promise<void> {
   ];
 
   for (const u of users) {
+    await db.query(`DELETE FROM users WHERE email = $1 AND id != $2`, [u.email, u.id]);
     await db.query(
       `INSERT INTO users (id, email, password_hash, role, full_name, enrollment_id, department_id, year_of_study, face_embedding)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       ON CONFLICT (email) DO UPDATE
-       SET full_name = EXCLUDED.full_name, role = EXCLUDED.role,
+       ON CONFLICT (id) DO UPDATE
+       SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = EXCLUDED.role,
            department_id = EXCLUDED.department_id, year_of_study = EXCLUDED.year_of_study,
            face_embedding = EXCLUDED.face_embedding`,
       [u.id, u.email, defaultPasswordHash, u.role, u.fullName, u.enrollmentId, u.departmentId, u.yearOfStudy, u.faceEmbedding]

@@ -5,6 +5,9 @@ import { QrService } from '../services/qr.service.js';
 import { getDb } from '../database/db.js';
 import { AttendanceAttemptPayload } from '../types/attempt.types.js';
 import { AttendanceDecision } from '../config/constants.js';
+import { UserRole } from '../config/constants.js';
+import { professorScope, requireSessionAccess, httpError } from '../services/access.service.js';
+import { SessionContextService } from '../services/session-context.service.js';
 
 export class AttendanceController {
   /**
@@ -27,9 +30,7 @@ export class AttendanceController {
 
     // Attach client IP if telemetry does not have it
     if (!payload.telemetry) payload.telemetry = {};
-    if (!payload.telemetry.clientIp) {
-      payload.telemetry.clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
-    }
+    payload.telemetry.clientIp = req.socket.remoteAddress || '';
 
     try {
       const evaluation = await PolicyService.evaluateAttempt(studentId, payload);
@@ -40,7 +41,7 @@ export class AttendanceController {
 
       res.status(statusCode).json(evaluation);
     } catch (err: any) {
-      res.status(500).json({ error: 'EVALUATION_ERROR', message: err.message });
+      res.status(err.statusCode || 500).json({ error: 'EVALUATION_ERROR', message: err.message });
     }
   }
 
@@ -62,11 +63,21 @@ export class AttendanceController {
     }
 
     try {
-      const { payload, tokenObj } = QrService.generateStudentPersonalPayload(sessionId, studentId, 30);
+      const db = await getDb();
+      let resolvedId = sessionId;
+      const slot = await db.query('SELECT id FROM timetable_slots WHERE id = $1', [sessionId]);
+      if (slot.rows.length) {
+        const context = await SessionContextService.forSlot(req.user!, sessionId);
+        if (!context?.sessionActive) throw httpError(409, 'Your professor has not opened attendance for this class yet. Your QR will appear when the session starts.');
+        resolvedId = context.sessionId;
+      }
+      const session = await requireSessionAccess(req.user!, resolvedId);
+      if (session.status !== 'ACTIVE' || new Date(session.end_time) <= new Date()) throw httpError(409, 'No active attendance session for this class. Ask your professor to start one.');
+      const { payload, tokenObj } = QrService.generateStudentPersonalPayload(resolvedId, studentId, 30);
       const dataUrl = await QrService.renderQrCode(payload, 'dataUrl');
 
       res.status(200).json({
-        sessionId,
+        sessionId: resolvedId,
         studentId,
         qrPayload: payload,
         dataUrl,
@@ -75,7 +86,7 @@ export class AttendanceController {
         expiresInSeconds: tokenObj.exp - tokenObj.timestamp
       });
     } catch (err: any) {
-      res.status(500).json({ error: 'QR_GENERATION_FAILED', message: err.message });
+      res.status(err.statusCode || 500).json({ error: 'QR_GENERATION_FAILED', message: err.message });
     }
   }
 
@@ -107,7 +118,7 @@ export class AttendanceController {
       const result = await PolicyService.processProfessorScan(professorId, sessionId, studentQrPayload);
       res.status(200).json(result);
     } catch (err: any) {
-      res.status(400).json({ error: 'SCAN_FAILED', message: err.message });
+      res.status(err.statusCode || 400).json({ error: 'SCAN_FAILED', message: err.message });
     }
   }
 
@@ -125,6 +136,11 @@ export class AttendanceController {
       WHERE aa.decision = 'CHALLENGE'
     `;
     const params: any[] = [];
+
+    if (req.user!.role === UserRole.PROFESSOR) {
+      params.push(req.user!.userId);
+      query += ` AND EXISTS (SELECT 1 FROM sessions s WHERE s.id = aa.session_id AND ${professorScope('s', '$1')})`;
+    }
 
     if (sessionId) {
       params.push(sessionId);
@@ -158,7 +174,7 @@ export class AttendanceController {
       const outcome = await PolicyService.resolveChallenge(professorId, attemptId, decision, notes);
       res.status(200).json(outcome);
     } catch (err: any) {
-      res.status(400).json({ error: 'RESOLUTION_FAILED', message: err.message });
+      res.status(err.statusCode || 400).json({ error: 'RESOLUTION_FAILED', message: err.message });
     }
   }
 
@@ -178,6 +194,14 @@ export class AttendanceController {
       WHERE 1=1
     `;
     const params: any[] = [];
+
+    if (req.user!.role === UserRole.STUDENT) {
+      params.push(req.user!.userId);
+      query += ' AND aa.student_id = $1';
+    } else if (req.user!.role === UserRole.PROFESSOR) {
+      params.push(req.user!.userId);
+      query += ` AND EXISTS (SELECT 1 FROM sessions s WHERE s.id = aa.session_id AND ${professorScope('s', '$1')})`;
+    }
 
     if (sessionId) {
       params.push(sessionId);
@@ -214,10 +238,18 @@ export class AttendanceController {
       FROM attendance_records ar
       JOIN users u ON ar.student_id = u.id
       JOIN sessions s ON ar.session_id = s.id
-      JOIN courses c ON s.course_id = c.id
+      LEFT JOIN courses c ON s.course_id = c.id
       WHERE 1=1
     `;
     const params: any[] = [];
+
+    if (req.user!.role === UserRole.STUDENT) {
+      params.push(req.user!.userId);
+      query += ' AND ar.student_id = $1';
+    } else if (req.user!.role === UserRole.PROFESSOR) {
+      params.push(req.user!.userId);
+      query += ` AND ${professorScope('s', '$1')}`;
+    }
 
     if (sessionId) {
       params.push(sessionId);

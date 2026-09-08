@@ -21,6 +21,7 @@ export class BiometricService {
       console.warn(`[Biometrics] Vector length mismatch: ${vectorA.length} vs ${vectorB.length}`);
       return 0.0;
     }
+    if (![...vectorA, ...vectorB].every(value => typeof value === 'number' && Number.isFinite(value))) return 0;
 
     let dotProduct = 0.0;
     let normA = 0.0;

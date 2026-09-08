@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { FlowService } from '../services/flow.service.js';
 import { getDb } from '../database/db.js';
+import { requireSessionAccess } from '../services/access.service.js';
 
 export class FlowController {
   static async getStudentFlow(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -27,10 +28,11 @@ export class FlowController {
     };
 
     try {
+      await requireSessionAccess(req.user!, sessionId);
       const flowConfig = await FlowService.generateStudentFlow(sessionId, studentId, capabilities);
       res.status(200).json(flowConfig);
     } catch (err: any) {
-      res.status(400).json({ error: 'FLOW_GENERATION_FAILED', message: err.message });
+      res.status(err.statusCode || 400).json({ error: 'FLOW_GENERATION_FAILED', message: err.message });
     }
   }
 
@@ -43,10 +45,11 @@ export class FlowController {
     }
 
     try {
+      await requireSessionAccess(req.user!, sessionId, true);
       const professorFlow = await FlowService.generateProfessorFlow(sessionId);
       res.status(200).json(professorFlow);
     } catch (err: any) {
-      res.status(400).json({ error: 'FLOW_GENERATION_FAILED', message: err.message });
+      res.status(err.statusCode || 400).json({ error: 'FLOW_GENERATION_FAILED', message: err.message });
     }
   }
 
@@ -60,6 +63,7 @@ export class FlowController {
     }
 
     const db = await getDb();
+    await requireSessionAccess(req.user!, String(sessionId), true);
     await db.query(
       `UPDATE sessions SET verification_policy_override = $1 WHERE id = $2`,
       [JSON.stringify(policyOverride), sessionId]

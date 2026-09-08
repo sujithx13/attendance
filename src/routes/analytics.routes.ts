@@ -5,6 +5,7 @@ import { requireRole } from '../middleware/rbac.middleware.js';
 import { UserRole } from '../config/constants.js';
 
 const router = Router();
+router.get('/live-summary', authenticateToken, requireRole(UserRole.ADMIN), AnalyticsController.getLiveSummary);
 
 // Student high-performance attendance percentage
 router.get('/student/:studentId', authenticateToken, AnalyticsController.getStudentSummary);

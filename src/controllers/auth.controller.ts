@@ -190,12 +190,13 @@ export class AuthController {
 
   static async updateFaceEmbedding(req: AuthenticatedRequest, res: Response): Promise<void> {
     const { embedding } = req.body;
-    if (!embedding || !Array.isArray(embedding)) {
+    if (!Array.isArray(embedding) || embedding.length !== 128 || !embedding.every((n: unknown) => typeof n === 'number' && Number.isFinite(n)) || !embedding.some((n: number) => n !== 0)) {
       res.status(400).json({ error: 'INVALID_EMBEDDING', message: 'embedding must be an array of numbers.' });
       return;
     }
 
-    const targetUserId = req.params.userId || req.user?.userId;
+    const targetUserId = req.body.userId;
+    if (typeof targetUserId !== 'string') { res.status(400).json({ error: 'Target userId is required for administrator enrollment.' }); return; }
     const db = await getDb();
 
     await db.query(

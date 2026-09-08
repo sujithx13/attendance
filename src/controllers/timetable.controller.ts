@@ -131,7 +131,9 @@ export class TimetableController {
         slots = await TimetableService.getProfessorTimetable(userId);
       }
 
-      res.json({ slots });
+      const { SessionContextService } = await import('../services/session-context.service.js');
+      const contexts = await SessionContextService.forSlots(slots.map(slot => slot.id), role === 'STUDENT' ? userId : undefined);
+      res.json({ slots: slots.map(slot => ({ ...slot, ...contexts.get(slot.id) })) });
     } catch (err) {
       next(err);
     }

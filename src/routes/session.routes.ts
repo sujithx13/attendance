@@ -7,6 +7,7 @@ import { UserRole } from '../config/constants.js';
 const router = Router();
 
 router.get('/', authenticateToken, SessionController.listSessions);
+router.get('/for-slot/:slotId', authenticateToken, SessionController.slotContext);
 router.get('/:id', authenticateToken, SessionController.getSessionById);
 
 router.post('/', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.createSession);
@@ -15,7 +16,7 @@ router.post('/:id/start', authenticateToken, requireRole(UserRole.PROFESSOR, Use
 router.post('/:id/end', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.endSession);
 
 // Active QR & Exportable QR routes
-router.get('/:id/qr-code', authenticateToken, SessionController.getActiveQr);
-router.get('/:id/qr-export', authenticateToken, SessionController.exportQr);
+router.get('/:id/qr-code', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.getActiveQr);
+router.get('/:id/qr-export', authenticateToken, requireRole(UserRole.PROFESSOR, UserRole.ADMIN), SessionController.exportQr);
 
 export default router;

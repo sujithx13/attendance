@@ -2,16 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { ENV } from '../config/env.js';
 import { UserTokenPayload } from '../types/auth.types.js';
+import { getDb } from '../database/db.js';
 
 export interface AuthenticatedRequest extends Request {
   user?: UserTokenPayload;
 }
 
-export function authenticateToken(
+export async function authenticateToken(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-): void {
+): Promise<void> {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ')
     ? authHeader.substring(7)
@@ -24,7 +25,10 @@ export function authenticateToken(
 
   try {
     const decoded = jwt.verify(token, ENV.JWT_SECRET) as UserTokenPayload;
-    req.user = decoded;
+    const db = await getDb();
+    const current = await db.query('SELECT id, role, email, full_name FROM users WHERE id = $1', [decoded.userId]);
+    if (!current.rows[0]) throw new Error('User no longer exists.');
+    req.user = { ...decoded, role: current.rows[0].role, email: current.rows[0].email, fullName: current.rows[0].full_name };
     next();
   } catch (err: any) {
     res.status(403).json({ error: 'INVALID_TOKEN', message: 'Token is invalid or expired.' });
