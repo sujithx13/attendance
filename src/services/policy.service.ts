@@ -1,4 +1,6 @@
-import { getDb } from '../database/db.js';
+import { getDb, withTransaction, afterCommit } from '../database/db.js';
+import { requireSessionAccess, httpError } from './access.service.js';
+import { UserRole } from '../config/constants.js';
 import {
   AttendanceAttemptPayload,
   AttemptEvaluationResult,
@@ -27,6 +29,13 @@ export class PolicyService {
     studentId: string,
     payload: AttendanceAttemptPayload
   ): Promise<AttemptEvaluationResult> {
+    return withTransaction(() => this.evaluateInTransaction(studentId, payload));
+  }
+
+  private static async evaluateInTransaction(studentId: string, payload: AttendanceAttemptPayload): Promise<AttemptEvaluationResult> {
+    if (payload.coordinates && (!Number.isFinite(payload.coordinates.latitude) || !Number.isFinite(payload.coordinates.longitude) || !Number.isFinite(payload.coordinates.accuracy) || Math.abs(payload.coordinates.latitude) > 90 || Math.abs(payload.coordinates.longitude) > 180 || payload.coordinates.accuracy < 0)) {
+      throw httpError(400, 'Invalid GPS coordinates or accuracy.');
+    }
     const db = await getDb();
     const attemptId = `att_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const serverTimestamp = new Date();
@@ -36,14 +45,14 @@ export class PolicyService {
       `SELECT s.*,
               c.code AS course_code, c.name AS course_name,
               b.code AS batch_code, b.name AS batch_name,
-              clr.latitude, clr.longitude, clr.radius_meters, clr.allowed_ip_subnets,
+              clr.latitude, clr.longitude, clr.radius_meters, clr.allowed_ip_subnets, clr.ble_beacon_ids,
               u.full_name AS student_name, u.enrollment_id, u.photo_url, u.face_embedding
        FROM sessions s
        LEFT JOIN courses c ON s.course_id = c.id
        LEFT JOIN batches b ON s.batch_id = b.id
        JOIN classrooms clr ON s.classroom_id = clr.id
        LEFT JOIN users u ON u.id = $1
-       WHERE s.id = $2`,
+       WHERE s.id = $2 FOR SHARE OF s`,
       [studentId, payload.sessionId]
     );
 
@@ -56,6 +65,8 @@ export class PolicyService {
       ...DEFAULT_VERIFICATION_POLICY,
       ...(sessionData.verification_policy_override || {})
     };
+    if (sessionData.origin_radius_meters != null) { policy.maxDistanceMeters = Number(sessionData.origin_radius_meters); policy.requiresGps = true; }
+    if (policy.declarationRequired && payload.declarationAccepted !== true) throw httpError(400, 'Confirm the physical presence declaration before submitting attendance.');
 
     // Initialize diagnostics
     const diagnostics: ValidationDiagnostics = {
@@ -119,7 +130,7 @@ export class PolicyService {
     }
 
     // --- CHECK 2: Session Active State Check ---
-    if (sessionData.status !== SessionStatus.ACTIVE) {
+    if (sessionData.status !== SessionStatus.ACTIVE || new Date(sessionData.end_time) <= serverTimestamp) {
       diagnostics.sessionStateCheck = { passed: false, message: `Session is ${sessionData.status}, not ACTIVE.` };
       hardFailure = true;
       if (!rejectionReason) rejectionReason = `SESSION_${sessionData.status}`;
@@ -204,7 +215,7 @@ export class PolicyService {
       }
 
       // Check velocity anomaly if coordinates provided
-      if (!hardFailure && payload.coordinates?.latitude && payload.coordinates?.longitude) {
+      if (!hardFailure && payload.coordinates) {
         const velResult = await TelemetryService.checkVelocityAnomaly(
           studentId,
           payload.coordinates.latitude,
@@ -236,8 +247,8 @@ export class PolicyService {
           payload.coordinates.latitude,
           payload.coordinates.longitude,
           payload.coordinates.accuracy,
-          parseFloat(sessionData.latitude),
-          parseFloat(sessionData.longitude),
+          Number(sessionData.origin_latitude ?? sessionData.latitude),
+          Number(sessionData.origin_longitude ?? sessionData.longitude),
           policy.maxDistanceMeters || parseFloat(sessionData.radius_meters),
           policy.maxGpsAccuracyMeters
         );
@@ -271,7 +282,7 @@ export class PolicyService {
         const clientIp = payload.telemetry?.clientIp || '';
         const allowedSubnets = sessionData.allowed_ip_subnets as string[] | undefined;
 
-        if (allowedSubnets && allowedSubnets.length > 0) {
+        if (sessionData.origin_radius_meters == null && allowedSubnets && allowedSubnets.length > 0) {
           const ipMatch = SpatialService.isIpInSubnets(clientIp, allowedSubnets);
           diagnostics.networkSubnetCheck = {
             passed: ipMatch,
@@ -298,6 +309,14 @@ export class PolicyService {
     }
 
     // --- CHECK 6: Layer 5 - Multi-Factor Biometric Verification ---
+    if (policy.requiresBle && !hardFailure) {
+      const expected: string[] = sessionData.ble_beacon_ids || [];
+      const detected = Array.isArray(payload.bleBeaconsDetected) ? payload.bleBeaconsDetected : [];
+      if (!expected.length || !expected.some(id => detected.includes(id))) {
+        challengeTriggered = true;
+        challengeReason = 'Required classroom Bluetooth proximity could not be verified. Professor review required.';
+      }
+    }
     let biometricScore: number | undefined;
     let biometricPassed = false;
     if (policy.requiresBiometric && !hardFailure) {
@@ -355,10 +374,10 @@ export class PolicyService {
         payload.clientTimestamp ? new Date(payload.clientTimestamp) : null,
         serverTimestamp,
         payload.qrPayload || null,
-        payload.coordinates?.latitude || null,
-        payload.coordinates?.longitude || null,
-        payload.coordinates?.accuracy || null,
-        calculatedDistance || null,
+        payload.coordinates?.latitude ?? null,
+        payload.coordinates?.longitude ?? null,
+        payload.coordinates?.accuracy ?? null,
+        calculatedDistance ?? null,
         payload.telemetry ? JSON.stringify(payload.telemetry) : null,
         payload.bleBeaconsDetected || null,
         biometricScore || null,
@@ -389,17 +408,24 @@ export class PolicyService {
         ? AttendanceRecordStatus.PRESENT
         : AttendanceRecordStatus.CHALLENGED;
 
-      await db.query(
+      const persisted = await db.query(
         `INSERT INTO attendance_records (id, session_id, student_id, attempt_id, status, marked_by, notes)
          VALUES ($1, $2, $3, $4, $5, 'SYSTEM', $6)
          ON CONFLICT (session_id, student_id)
-         DO UPDATE SET attempt_id = EXCLUDED.attempt_id, status = EXCLUDED.status, notes = EXCLUDED.notes`,
+         DO UPDATE SET attempt_id = EXCLUDED.attempt_id, status = EXCLUDED.status, notes = EXCLUDED.notes
+         WHERE attendance_records.status NOT IN ('PRESENT', 'LATE')
+         RETURNING id`,
         [recordId, payload.sessionId, studentId, attemptId, status, finalReason]
       );
+      if (persisted.rows[0]) recordId = persisted.rows[0].id;
+      else {
+        const existing = await db.query('SELECT id FROM attendance_records WHERE session_id = $1 AND student_id = $2', [payload.sessionId, studentId]);
+        recordId = existing.rows[0]?.id;
+      }
     }
 
     // --- NOTIFY PROFESSOR VIA WEBSOCKET IN REAL TIME ---
-    SessionSocketServer.broadcastCheckIn(payload.sessionId, {
+    afterCommit(() => SessionSocketServer.broadcastCheckIn(payload.sessionId, {
       attemptId,
       studentId,
       studentName: sessionData.student_name,
@@ -410,7 +436,7 @@ export class PolicyService {
       timestamp: serverTimestamp.toISOString(),
       distanceMeters: calculatedDistance,
       decisionReason: finalReason
-    });
+    }));
 
     return {
       attemptId,
@@ -432,6 +458,10 @@ export class PolicyService {
     decision: 'ACCEPT' | 'REJECT',
     notes?: string
   ): Promise<{ success: boolean; status: string }> {
+    return withTransaction(() => this.resolveInTransaction(professorId, attemptId, decision, notes));
+  }
+
+  private static async resolveInTransaction(professorId: string, attemptId: string, decision: 'ACCEPT' | 'REJECT', notes?: string): Promise<{ success: boolean; status: string }> {
     const db = await getDb();
 
     const attemptRes = await db.query(
@@ -439,7 +469,7 @@ export class PolicyService {
        FROM attendance_attempts aa
        JOIN sessions s ON aa.session_id = s.id
        JOIN users u ON aa.student_id = u.id
-       WHERE aa.id = $1`,
+       WHERE aa.id = $1 FOR UPDATE OF aa`,
       [attemptId]
     );
 
@@ -448,6 +478,11 @@ export class PolicyService {
     }
 
     const attempt = attemptRes.rows[0];
+    const actor = await db.query('SELECT role FROM users WHERE id = $1', [professorId]);
+    await requireSessionAccess({ userId: professorId, role: actor.rows[0]?.role, email: '', fullName: '' }, attempt.session_id, true);
+    if (attempt.decision !== 'CHALLENGE') throw httpError(409, 'Only pending challenges can be resolved.');
+    const current = await db.query('SELECT attempt_id, status FROM attendance_records WHERE session_id = $1 AND student_id = $2 FOR UPDATE', [attempt.session_id, attempt.student_id]);
+    if (current.rows[0]?.attempt_id !== attemptId || current.rows[0]?.status !== 'CHALLENGED') throw httpError(409, 'This challenge has been superseded by a newer attendance record.');
     const newStatus = decision === 'ACCEPT' ? AttendanceRecordStatus.PRESENT : AttendanceRecordStatus.ABSENT;
 
     // Update attendance_records
@@ -473,7 +508,7 @@ export class PolicyService {
     );
 
     // Notify professor stream
-    SessionSocketServer.broadcastCheckIn(attempt.session_id, {
+    afterCommit(() => SessionSocketServer.broadcastCheckIn(attempt.session_id, {
       attemptId,
       studentId: attempt.student_id,
       studentName: attempt.student_name,
@@ -482,7 +517,7 @@ export class PolicyService {
       status: newStatus,
       timestamp: new Date().toISOString(),
       decisionReason: notes || `Challenge resolved as ${decision}`
-    });
+    }));
 
     return { success: true, status: newStatus };
   }
@@ -495,6 +530,10 @@ export class PolicyService {
     sessionId: string,
     studentQrPayload: string
   ): Promise<AttemptEvaluationResult> {
+    return withTransaction(() => this.scanInTransaction(professorId, sessionId, studentQrPayload));
+  }
+
+  private static async scanInTransaction(professorId: string, sessionId: string, studentQrPayload: string): Promise<AttemptEvaluationResult> {
     const db = await getDb();
     const serverTimestamp = new Date();
 
@@ -511,46 +550,19 @@ export class PolicyService {
       `SELECT s.*, u.full_name AS student_name, u.enrollment_id, u.photo_url
        FROM sessions s
        JOIN users u ON u.id = $1
-       WHERE s.id = $2`,
+       WHERE s.id = $2 FOR SHARE OF s`,
       [studentId, sessionId]
     );
 
-    if (sessionRes.rows.length === 0) {
-      // Check if student exists
-      const userRes = await db.query(`SELECT full_name AS student_name, enrollment_id, photo_url FROM users WHERE id = $1`, [studentId]);
-      if (userRes.rows.length === 0) {
-        throw new Error('Student user record not found.');
-      }
-
-      // Check if sessionId is a timetable slot ID
-      const slotRes = await db.query(`SELECT * FROM timetable_slots WHERE id = $1`, [sessionId]);
-      if (slotRes.rows.length > 0) {
-        const slot = slotRes.rows[0];
-        await db.query(
-          `INSERT INTO sessions (id, course_id, batch_id, professor_id, classroom_id, start_time, end_time, status)
-           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '2 hours', 'ACTIVE')
-           ON CONFLICT (id) DO NOTHING`,
-          [sessionId, slot.course_id || 'crs_general', slot.batch_id, slot.professor_id || professorId, slot.classroom_id]
-        );
-      } else {
-        await db.query(
-          `INSERT INTO sessions (id, course_id, professor_id, start_time, end_time, status)
-           VALUES ($1, 'crs_general', $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '2 hours', 'ACTIVE')
-           ON CONFLICT (id) DO NOTHING`,
-          [sessionId, professorId]
-        );
-      }
-
-      sessionRes = await db.query(
-        `SELECT s.*, u.full_name AS student_name, u.enrollment_id, u.photo_url
-         FROM sessions s
-         JOIN users u ON u.id = $1
-         WHERE s.id = $2`,
-        [studentId, sessionId]
-      );
-    }
-
+    /* Never create a session as a side effect of scanning an arbitrary QR. */
+    if (sessionRes.rows.length === 0) throw httpError(404, 'Session or student not found.');
     const sessionData = sessionRes.rows[0];
+    const student = await db.query('SELECT role FROM users WHERE id = $1', [studentId]);
+    if (student.rows[0]?.role !== UserRole.STUDENT) throw httpError(403, 'QR must belong to a student.');
+    await requireSessionAccess({ userId: studentId, role: UserRole.STUDENT, email: '', fullName: '' }, sessionId);
+    if (sessionData.status !== SessionStatus.ACTIVE || new Date(sessionData.end_time) <= serverTimestamp) throw httpError(409, 'Attendance session is not active.');
+    const actor = await db.query('SELECT role FROM users WHERE id = $1', [professorId]);
+    if (![UserRole.PROFESSOR, UserRole.ADMIN].includes(actor.rows[0]?.role)) throw httpError(403, 'Staff access required.');
 
     // Replay check on student personal QR
     const nonceRes = await QrService.checkAndConsumeNonce(
@@ -635,7 +647,7 @@ export class PolicyService {
     );
 
     // Broadcast check-in
-    SessionSocketServer.broadcastCheckIn(sessionId, {
+    afterCommit(() => SessionSocketServer.broadcastCheckIn(sessionId, {
       attemptId,
       studentId,
       studentName: sessionData.student_name,
@@ -645,7 +657,7 @@ export class PolicyService {
       status: 'PRESENT',
       timestamp: serverTimestamp.toISOString(),
       decisionReason
-    });
+    }));
 
     return {
       attemptId,

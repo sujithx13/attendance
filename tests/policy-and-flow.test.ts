@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { getDb } from '../src/database/db.js';
 import { FlowService } from '../src/services/flow.service.js';
 import { PolicyService } from '../src/services/policy.service.js';
 import { QrService } from '../src/services/qr.service.js';
@@ -39,6 +40,7 @@ export async function testPolicyAndFlow(): Promise<void> {
   const acceptResult = await PolicyService.evaluateAttempt(studentId, {
     sessionId,
     clientTimestamp: new Date().toISOString(),
+      declarationAccepted: true,
     qrPayload: validQr,
     coordinates: {
       latitude: 12.971600, // inside Turing Hall (12.971598, 77.594562)
@@ -59,6 +61,7 @@ export async function testPolicyAndFlow(): Promise<void> {
   const replayResult = await PolicyService.evaluateAttempt(studentId, {
     sessionId,
     clientTimestamp: new Date().toISOString(),
+      declarationAccepted: true,
     qrPayload: validQr, // same QR payload re-submitted
     coordinates: {
       latitude: 12.971600,
@@ -75,6 +78,7 @@ export async function testPolicyAndFlow(): Promise<void> {
   const spoofResult = await PolicyService.evaluateAttempt(studentId, {
     sessionId,
     clientTimestamp: new Date().toISOString(),
+      declarationAccepted: true,
     qrPayload: freshQr2,
     coordinates: {
       latitude: 12.971600,
@@ -91,11 +95,14 @@ export async function testPolicyAndFlow(): Promise<void> {
   assert(spoofResult.decisionReason.includes('MOCK_LOCATION'));
   console.log('  ✓ Spoofed GPS telemetry with mock provider flagged and rejected (status: REJECT)');
 
+  const db = await getDb();
+  await db.query('DELETE FROM attendance_records WHERE session_id = $1 AND student_id = $2', [sessionId, studentId]);
   // 6. Borderline Distance Attempt (CHALLENGE State)
   const { payload: freshQr3 } = QrService.generateSessionBroadcastPayload(sessionId, 20);
   const challengeResult = await PolicyService.evaluateAttempt(studentId, {
     sessionId,
     clientTimestamp: new Date().toISOString(),
+      declarationAccepted: true,
     qrPayload: freshQr3,
     coordinates: {
       latitude: 12.971860, // ~31m away, slightly above 25m radius but within 10m margin

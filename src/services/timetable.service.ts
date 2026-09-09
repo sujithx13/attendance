@@ -273,8 +273,8 @@ export class TimetableService {
         await db.query(
           `INSERT INTO sessions (
             id, course_id, batch_id, professor_id, classroom_id,
-            start_time, end_time, status
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'SCHEDULED')`,
+            start_time, end_time, status, timetable_slot_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'SCHEDULED', $8)`,
           [
             sessionId,
             slot.course_id || null,
@@ -282,7 +282,8 @@ export class TimetableService {
             slot.professor_id,
             slot.classroom_id,
             startDateTime,
-            endDateTime
+            endDateTime,
+            slot.id
           ]
         );
 

@@ -144,23 +144,12 @@ export class QrService {
     const expiresAt = new Date(expiresAtTimestamp * 1000);
 
     try {
-      // Check if nonce already exists
-      const existing = await db.query(
-        'SELECT nonce FROM used_qr_nonces WHERE nonce = $1',
-        [nonce]
-      );
-
-      if (existing.rows.length > 0) {
-        return { isFresh: false, reason: 'REPLAY_ATTACK_NONCE_ALREADY_USED' };
-      }
-
-      // Record nonce
-      await db.query(
-        'INSERT INTO used_qr_nonces (nonce, session_id, student_id, expires_at) VALUES ($1, $2, $3, $4)',
+      const inserted = await db.query(
+        `INSERT INTO used_qr_nonces (nonce, session_id, student_id, expires_at) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (nonce, student_id) DO NOTHING RETURNING nonce`,
         [nonce, sessionId, studentId, expiresAt]
       );
-
-      return { isFresh: true };
+      return inserted.rows.length ? { isFresh: true } : { isFresh: false, reason: 'REPLAY_ATTACK_NONCE_ALREADY_USED' };
     } catch (err: any) {
       if (err.message?.includes('duplicate') || err.message?.includes('unique')) {
         return { isFresh: false, reason: 'REPLAY_ATTACK_CONCURRENT_RACE' };

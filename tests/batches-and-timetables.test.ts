@@ -99,7 +99,8 @@ export async function runBatchesAndTimetableTests(): Promise<void> {
     targetType: TargetType.BATCH,
     batchId: crossBatch.id,
     professorId: 'usr_prof_alan',
-    classroomId: 'clr_lovelace_lab'
+    classroomId: 'clr_lovelace_lab',
+    effectiveFrom: '2026-01-01'
   });
 
   if (!slot.id) {
@@ -140,6 +141,7 @@ export async function runBatchesAndTimetableTests(): Promise<void> {
     {
       sessionId: batchSessionId,
       clientTimestamp: new Date().toISOString(),
+      declarationAccepted: true,
       qrPayload: batchQrPayload,
       coordinates: {
         latitude: 12.971850,
@@ -165,6 +167,7 @@ export async function runBatchesAndTimetableTests(): Promise<void> {
     {
       sessionId: batchSessionId,
       clientTimestamp: new Date().toISOString(),
+      declarationAccepted: true,
       qrPayload: freshBatchQrPayload,
       coordinates: {
         latitude: 12.971850,

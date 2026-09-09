@@ -49,6 +49,7 @@ export class FlowService {
       ...DEFAULT_VERIFICATION_POLICY,
       ...(session.verification_policy_override || {})
     };
+    if (session.origin_radius_meters != null) { policy.maxDistanceMeters = Number(session.origin_radius_meters); policy.requiresGps = true; }
 
     const steps: FlowStepConfig[] = [];
     let stepOrder = 1;
@@ -93,8 +94,8 @@ export class FlowService {
           required: true,
           order: stepOrder++,
           metadata: {
-            targetLatitude: parseFloat(session.latitude),
-            targetLongitude: parseFloat(session.longitude),
+            targetLatitude: Number(session.origin_latitude ?? session.latitude),
+            targetLongitude: Number(session.origin_longitude ?? session.longitude),
             maxDistanceMeters: policy.maxDistanceMeters,
             maxAllowedAccuracyMeters: policy.maxGpsAccuracyMeters,
             enforceAntiSpoofing: !policy.allowMockLocation
