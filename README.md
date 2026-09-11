@@ -15,6 +15,7 @@ Students open a scheduled session, scan its classroom QR, and see their saved at
 | [Online deployment](docs/DEPLOYMENT.md) | Temporary Cloudflare access, stable hosting, PostgreSQL, reverse proxy, backups and operational limits |
 | [Android builds and testing](docs/ANDROID.md) | Standalone APKs, SDK setup, Windows path workaround, signing, installation and physical-device checks |
 | [Work completed](docs/WORK-COMPLETED.md) | Implemented changes, verification and remaining work |
+| [Old app and change comparison](docs/OLD-APP-AND-CHANGES.md) | Earlier screens/features, what changed, scope concerns and selective restoration options |
 | [Agent instructions](AGENTS.md) | How to safely continue development and validate changes |
 | [Contributor workflow](CONTRIBUTING.md) | Human development and review workflow |
 | [API guide](docs/API.md) | Main endpoints, authentication and WebSocket messages |

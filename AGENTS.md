@@ -60,6 +60,8 @@ Do not print `.env` contents, access tokens, passwords from live systems or data
 
 ## Continuing work
 
+The user reported dissatisfaction with broader changes beyond the requested fixes. Read `docs/OLD-APP-AND-CHANGES.md` before any further redesign. Preserve existing visual sections, terminology and role-specific features unless the requested task calls for changing them. Do not treat the current simplified UI as an accepted final design. For restoration, identify the intended historical version/area and preserve current security, persistence and session contracts.
+
 Prefer small coherent changes in shared API types, services and UI components. Update the relevant documentation when behavior changes. Keep user-facing copy simple: session name/time/room/professor/status, scanner and personal QR tabs. Missing course titles currently fall back to `Class session`; do not reintroduce batch names as the student-facing session title without product direction.
 
 The backlog in `docs/WORK-COMPLETED.md` identifies unfinished production work. Do not describe planned features as implemented. Report exactly what was checked, limitations and changed files. Commit source and docs together when behavior changes, and preserve unrelated user configuration.

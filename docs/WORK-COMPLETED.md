@@ -2,6 +2,8 @@
 
 Updated 2026-10-29. This describes the source included in this repository, not a promise that a temporary tunnel remains online.
 
+**Design acceptance:** the user has reported that some changes exceeded the requested scope and the resulting UI is unsatisfactory. Implemented does not mean accepted. Read [Old app and change comparison](OLD-APP-AND-CHANGES.md) for the source-backed earlier experience, broader choices and restoration guidance. No restoration is claimed by this record.
+
 ## Starting application and administration
 
 The project already contained Node/TypeScript attendance services, academic management, PGlite/PostgreSQL adapters, an admin dashboard and an Expo app. The accumulated changes preserve those features while correcting authorization, attendance consistency, native behavior and setup reliability.
