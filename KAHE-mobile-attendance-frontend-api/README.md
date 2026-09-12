@@ -1,5 +1,7 @@
 # KAHE mobile attendance
 
+**Updated workflow:** [Current mobile attendance rules](../docs/CURRENT-MOBILE-WORKFLOW.md) supersede the manual-start/GPS descriptions below. Scheduled sessions open automatically; teachers confirm out-of-time actions; students can show same-day passes; GPS checks are paused.
+
 Expo SDK 57 / React Native 0.86 application for students and faculty. The repository root contains the backend; this folder does not run an independent API.
 
 Start with the [main README](../README.md), [local setup](../docs/LOCAL-SETUP.md), [Android build guide](../docs/ANDROID.md) and [architecture](../docs/ARCHITECTURE.md). Development agents must also read [AGENTS.md](AGENTS.md).

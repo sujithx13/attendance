@@ -60,12 +60,11 @@ describe("attendance API client configuration", () => {
     await expect(submitAttendanceAttempt('token', { sessionId: 'session', clientTimestamp: '' })).resolves.toEqual({ decision: 'REJECT', decisionReason: 'EXPIRED_QR_TOKEN' });
   });
 
-  it('sends the professor location only when starting a session', async () => {
+  it('sends explicit confirmation for an out-of-schedule session without GPS', async () => {
     const mocked = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ sessionId: 'sess_live', status: 'ACTIVE' }) });
     vi.stubGlobal('fetch', mocked);
-    const location = { latitude: 11, longitude: 76, accuracy: 8, timestamp: Date.now(), radiusMeters: 100 };
-    await launchSlotSession('token', 'slot_lecture', undefined, location);
-    expect(JSON.parse(mocked.mock.calls[0][1].body)).toEqual({ slotId: 'slot_lecture', location });
+    await launchSlotSession('token', 'slot_lecture', undefined, true);
+    expect(JSON.parse(mocked.mock.calls[0][1].body)).toEqual({ slotId: 'slot_lecture', confirmOutsideSchedule: true });
   });
 
   it('migrates an expired preview tunnel address when a new APK supplies its replacement', async () => {

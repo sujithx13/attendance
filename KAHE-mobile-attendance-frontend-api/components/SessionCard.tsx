@@ -15,8 +15,6 @@ export function SessionCard({ slot, student, onPress }: { slot: MobileTimetableS
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.timetableCard, pressed && styles.pressedState]}>
     <Text style={{ color: colors.textMuted, fontSize: 13 }}>{formatAmPm(slot.startTime)} - {formatAmPm(slot.endTime)}</Text>
     <Text style={[styles.timetableCardTitle, { marginTop: 8 }]}>{sessionName(slot)}</Text>
-    <Text style={{ color: colors.textMuted, fontSize: 14, lineHeight: 22 }}>{slot.classroomName || 'Room to be confirmed'}</Text>
-    <Text style={{ color: colors.textMuted, fontSize: 14, lineHeight: 22 }}>{slot.professorName || 'Professor to be confirmed'}</Text>
-    {student ? <AttendanceBadge status={slot.attendanceStatus} /> : <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700', marginTop: 10 }}>Open attendance</Text>}
+    {student ? <AttendanceBadge status={slot.attendanceStatus} /> : <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700', marginTop: 10 }}>Show QR</Text>}
   </Pressable>;
 }

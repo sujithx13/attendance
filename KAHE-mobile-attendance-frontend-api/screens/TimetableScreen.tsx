@@ -12,7 +12,8 @@ export function TimetableScreen({ auth, role, onOpenStudentQr, onOpenFacultyQr, 
   auth: AuthSession; role: Role; onNavigate: (screen: Screen) => void;
   onOpenStudentQr: (slot: MobileTimetableSlot) => void; onOpenFacultyQr: (slot: MobileTimetableSlot) => void; onBack: () => void;
 }) {
-  const today = new Date().getDay();
+  const campusDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const today = new Date(`${campusDate}T12:00:00+05:30`).getUTCDay();
   const [selectedDay, setSelectedDay] = useState(today || 1);
   const { slots, loading, error } = useTimetable(auth.token);
   const student = role === 'student';
@@ -20,7 +21,7 @@ export function TimetableScreen({ auth, role, onOpenStudentQr, onOpenFacultyQr, 
   return <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
     <Back onPress={onBack} />
     <Text style={styles.screenTitle}>Weekly timetable</Text>
-    <Text style={styles.screenLead}>{student ? 'Select a session to scan or show your QR.' : 'Select a session to open attendance.'}</Text>
+    <Text style={styles.screenLead}>{student ? 'Select a session to scan or show your QR.' : 'Select a session to show its QR or scan student passes.'}</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={styles.daySelectorBar}>
       {WEEK_DAYS.map(day => <Pressable accessibilityRole="button" key={day.day} onPress={() => setSelectedDay(day.day)} style={[styles.dayButton, selectedDay === day.day && styles.dayButtonActive]}><Text style={[styles.dayButtonText, selectedDay === day.day && styles.dayButtonTextActive]}>{day.name}</Text></Pressable>)}
     </ScrollView>

@@ -69,7 +69,7 @@ export type AuthSession = { token: string; user: ApiUser };
 export type StudentFlow = ServerDrivenFlowConfig;
 export type AttendanceDecision = { decision: "ACCEPT" | "CHALLENGE" | "REJECT"; decisionReason?: string };
 export type StudentQr = { dataUrl: string; expiresInSeconds: number; expiresAt: number; sessionId: string };
-export type SessionContext = { sessionId: string | null; sessionActive: boolean; attendanceStatus: 'MARKED' | 'PENDING' | 'NOT_MARKED'; verifiedAt: string | null; locationReady: boolean; radiusMeters: number | null };
+export type SessionContext = { sessionId: string | null; sessionActive: boolean; attendanceStatus: 'MARKED' | 'PENDING' | 'NOT_MARKED'; verifiedAt: string | null; locationReady: boolean; radiusMeters: number | null; outsideScheduledTime?: boolean };
 export function getSlotContext(token: string, slotId: string) {
   return request<SessionContext>(`/sessions/for-slot/${encodeURIComponent(slotId)}`, { headers: authHeaders(token) });
 }
@@ -78,7 +78,7 @@ export type AttendanceSummary = { courseCode: string; attendancePercentage?: num
 export type AnalyticsResponse = { summaries: AttendanceSummary[] };
 
 export class AttendanceApiError extends Error {
-  constructor(message: string, public status?: number) { super(message); }
+  constructor(message: string, public status?: number, public code?: string) { super(message); }
 }
 
 export function authHeaders(token: string): HeadersInit {
@@ -104,7 +104,7 @@ async function request<T>(path: string, options: RequestInit = {}, allowAttendan
   const rejectedAttempt = allowAttendanceRejection && response.status === 403 && (payload as AttendanceDecision | null)?.decision === 'REJECT';
   if (!response.ok && !rejectedAttempt) {
     const detail = payload && typeof payload === "object" && ("message" in payload || "error" in payload) ? payload.message ?? payload.error : undefined;
-    throw new AttendanceApiError(detail ?? `Request failed with status ${response.status}.`, response.status);
+    throw new AttendanceApiError(detail ?? `Request failed with status ${response.status}.`, response.status, (payload as { error?: string })?.error);
   }
   if (!payload) throw new AttendanceApiError("The attendance service returned an empty response.", response.status);
   return payload as T;
@@ -169,13 +169,13 @@ export function updateProfile(token: string, body: { fullName?: string; departme
 }
 
 export function getFacultyQrExport(token: string, sessionId: string, expiresInSeconds: number = 900) {
-  return request<{ dataUrl: string; expiresInSeconds: number; format: string }>(
+  return request<{ dataUrl: string; expiresAt: number; expiresInSeconds: number; format: string }>(
     `/sessions/${encodeURIComponent(sessionId)}/qr-export?format=dataUrl&expiresInSeconds=${expiresInSeconds}`,
     { headers: authHeaders(token) }
   );
 }
 
-export function submitProfessorScan(token: string, sessionId: string, studentQrPayload: string) {
+export function submitProfessorScan(token: string, sessionId: string, studentQrPayload: string, confirmOutsideSchedule = false) {
   return request<{
     attemptId: string;
     decision: "ACCEPT" | "REJECT";
@@ -185,7 +185,7 @@ export function submitProfessorScan(token: string, sessionId: string, studentQrP
   }>("/attendance/professor-scan", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },
-    body: JSON.stringify({ sessionId, studentQrPayload })
+    body: JSON.stringify({ sessionId, studentQrPayload, confirmOutsideSchedule })
   });
 }
 
@@ -231,10 +231,14 @@ export function getMyTimetable(token: string) {
   return request<{ slots: MobileTimetableSlot[] }>("/timetable/my", { headers: authHeaders(token) });
 }
 
-export function launchSlotSession(token: string, slotId?: string, batchId?: string, location?: SessionLocation) {
+export function launchSlotSession(token: string, slotId?: string, batchId?: string, confirmOutsideSchedule = false) {
   return request<{ message: string; sessionId: string; status: string }>("/sessions/launch-slot", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders(token) },
-    body: JSON.stringify({ slotId, batchId, ...(location ? { location } : {}) })
+    body: JSON.stringify({ slotId, batchId, confirmOutsideSchedule })
   });
+}
+
+export function getSessionRecords(token: string, sessionId: string) {
+  return request<{ records: { id: string; status: string; full_name: string; verified_at: string }[] }>(`/attendance/records?sessionId=${encodeURIComponent(sessionId)}`, { headers: authHeaders(token) });
 }

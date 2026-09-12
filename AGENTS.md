@@ -2,7 +2,7 @@
 
 ## Start here
 
-Read `README.md`, `docs/ARCHITECTURE.md`, `docs/WORK-COMPLETED.md` and the relevant setup/build guide before changing behavior. Inspect `git status`, the active branch and the actual files. Existing uncommitted changes can belong to the user; never discard them wholesale.
+Read `README.md`, `docs/CURRENT-MOBILE-WORKFLOW.md`, `docs/ARCHITECTURE.md`, `docs/WORK-COMPLETED.md` and the relevant setup/build guide before changing behavior. Inspect `git status`, the active branch and the actual files. Existing uncommitted changes can belong to the user; never discard them wholesale.
 
 The mobile directory has its own `AGENTS.md`: read the exact Expo SDK 57 documentation before editing mobile code. Do not assume an older Expo/RN API. This is a three-package repository, not an npm workspace.
 
@@ -23,10 +23,10 @@ The mobile directory has its own `AGENTS.md`: read the exact Expo SDK 57 documen
 2. Preserve `ACCEPT`, `CHALLENGE`, `REJECT` and distinguish accepted, pending and unconfirmed network outcomes.
 3. Session IDs and timetable slot IDs are different. Resolve a slot through session context; personal passes must use an active real session.
 4. A selected-session scanner rejects a code for another session before submission.
-5. Faculty phone location is captured with explicit location permission. The first origin/radius is fixed for the session. Never move it silently on refresh.
-6. For mobile-origin sessions, enforce GPS against the session origin/radius. Legacy sessions can use configured classroom coordinates. Do not bypass location checks or invent coordinates to make demos pass.
+5. Sessions open automatically at their scheduled campus time (Asia/Kolkata). Teachers must explicitly confirm classroom QR display or personal-pass scans outside scheduled hours. Warnings must not consume QR nonces or write attendance.
+6. GPS attendance checks are currently disabled at the user’s request, including older origin/policy overrides. Do not request phone location. Preserve the unused schema/utilities without presenting GPS as active.
 7. Students read their own attendance; staff reads require scope. Campus WebSocket subscriptions are admin-only. Query current database roles during authentication.
-8. Professor reverse scans require an active existing session and student enrollment. Preserve the explicit out-of-batch audit marker.
+8. Timetable-linked personal passes may be issued for any enrolled session on the current campus day. Teachers assigned to the batch may mark them outside scheduled time only after confirmation. Preserve enrollment/replay checks and the legacy out-of-batch audit marker for non-timetable sessions.
 9. Replay consumption is per `(nonce, student_id)`. A classroom code must support multiple enrolled students while blocking duplicate reuse by one student.
 10. Consume nonces and write attempts/records inside one transaction. Publish notifications after commit. Keep accepted attendance from being downgraded by a later challenge.
 11. Display credentials are scoped to paired QR access. Never send student records to classroom display sockets.

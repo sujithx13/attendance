@@ -15,12 +15,6 @@
           "recordAudioAndroid": false
         }
       ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Allow KAHE Attendance to confirm your presence during a scan."
-        }
-      ],
       "expo-sharing"
     ],
     "ios": {
