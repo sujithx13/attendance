@@ -1,5 +1,7 @@
 # API and real-time integration guide
 
+**Updated workflow:** [Current mobile attendance rules](CURRENT-MOBILE-WORKFLOW.md) supersede the manual-start/GPS descriptions below. Scheduled sessions open automatically; teachers confirm out-of-time actions; students can show same-day passes; GPS checks are paused.
+
 Base prefix: `/api/v1`. Most routes require `Authorization: Bearer <JWT>`. Bodies are JSON. Treat this guide as an orientation; route/controller/types files are the exact contract. Errors generally carry `error` and/or `message`; clients must not treat a successful QR decode or HTTP request alone as an accepted attendance decision.
 
 ## Entry points

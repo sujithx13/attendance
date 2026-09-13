@@ -2,9 +2,11 @@
 
 A college attendance system with a TypeScript API, a React administration dashboard, an Expo Android application, and a browser-based classroom QR display.
 
-Students open a scheduled session, scan its classroom QR, and see their saved attendance status. Faculty can also scan a student's personal pass. When faculty start attendance from the mobile app, their phone's precise location and chosen radius become the fixed location boundary for that session.
+Students open a scheduled session, scan its classroom QR, and see their saved attendance status. Faculty can also scan a student's personal pass. Sessions open automatically at their scheduled time. Teachers can confirm an out-of-time QR display or scan; GPS checks are currently disabled.
 
 **Current state:** working development/phone-testing implementation; Android preview version **1.0.2**, version code **3**. This repository includes source, migrations and tests. Local databases, secrets, generated Android projects and APKs are intentionally excluded. A Cloudflare tunnel exposes a running API; the backend is not a Cloudflare Worker, and the admin dashboard is a client of the backend.
+
+See [Current mobile workflow](docs/CURRENT-MOBILE-WORKFLOW.md) for the latest dashboard, timetable, same-day pass and timing rules.
 
 ## Documentation
 
@@ -92,15 +94,11 @@ Use the admin dashboard for administration and the mobile app for student/facult
 
 ## Attendance workflow
 
-1. Admin configures departments, courses, classrooms, enrollments, batches and timetable slots.
-2. Faculty open a session on their phone, select a radius of 25m, 50m or 100m, grant precise location and select **Start attendance here**.
-3. The API stores that phone location and radius once. QR refreshes and reopening the session do not move it.
-4. Faculty show the classroom QR directly or pair a larger browser display using **Show on big screen**.
-5. An enrolled student opens the same session. **Scan classroom QR** is selected; **My QR** displays a personal pass for a professor to scan.
-6. Student scans are evaluated by the backend. A saved accepted record shows **Marked present**. Review requests show **Pending approval**; an unmarked session shows **Not marked**.
-7. Status reloads from the database, including attendance recorded by a professor scanning the student's pass.
-
-Being near a PC is relevant only if it is near the professor's captured starting location. A GPS accuracy message such as `300m > 35m` describes the phone's uncertainty, not its distance from the screen. Enable precise location and improve the GPS fix.
+1. Admin configures classes, batches, enrollments and timetable slots.
+2. Attendance opens automatically during the scheduled interval in India time.
+3. Students open a session to scan its classroom QR or switch to **My QR**. Personal passes are available for today's enrolled sessions, including before/after class.
+4. Any teacher assigned to the batch can display its QR or scan student passes. Outside scheduled time, the teacher must confirm a warning to proceed.
+5. Successful scans show saved attendance. Pending, rejected and unconfirmed results remain distinct. GPS checks are disabled for now.
 
 ## Verification
 

@@ -1,5 +1,7 @@
 # Work completed and handoff status
 
+**Updated workflow:** [Current mobile attendance rules](CURRENT-MOBILE-WORKFLOW.md) supersede the manual-start/GPS descriptions below. Scheduled sessions open automatically; teachers confirm out-of-time actions; students can show same-day passes; GPS checks are paused.
+
 Updated 2026-10-29. This describes the source included in this repository, not a promise that a temporary tunnel remains online.
 
 **Design acceptance:** the user has reported that some changes exceeded the requested scope and the resulting UI is unsatisfactory. Implemented does not mean accepted. Read [Old app and change comparison](OLD-APP-AND-CHANGES.md) for the source-backed earlier experience, broader choices and restoration guidance. No restoration is claimed by this record.

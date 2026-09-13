@@ -1,5 +1,7 @@
 # Local installation and operation
 
+**Updated workflow:** [Current mobile attendance rules](CURRENT-MOBILE-WORKFLOW.md) supersede the manual-start/GPS descriptions below. Scheduled sessions open automatically; teachers confirm out-of-time actions; students can show same-day passes; GPS checks are paused.
+
 ## Prerequisites
 
 - Git, Node.js 22.13+ and npm. Use an actively supported Node release compatible with the lockfiles; Expo SDK 57 requires at least Node 22.13.

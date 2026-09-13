@@ -1,5 +1,7 @@
 # Architecture and behavior
 
+**Updated workflow:** [Current mobile attendance rules](CURRENT-MOBILE-WORKFLOW.md) supersede the manual-start/GPS descriptions below. Scheduled sessions open automatically; teachers confirm out-of-time actions; students can show same-day passes; GPS checks are paused.
+
 ## System boundaries
 
 The repository has one business backend. Express serves JSON routes under `/api/v1`, a health endpoint, browser display assets, an optional APK download and WebSockets at `/ws`. React admin and Expo mobile are independent clients. Neither frontend is the database or the authoritative attendance engine.
