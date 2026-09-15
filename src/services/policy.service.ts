@@ -1,3 +1,4 @@
+import { ScheduleService } from './schedule.service.js';
 import { getDb, withTransaction, afterCommit } from '../database/db.js';
 import { requireSessionAccess, httpError } from './access.service.js';
 import { UserRole } from '../config/constants.js';
@@ -29,6 +30,7 @@ export class PolicyService {
     studentId: string,
     payload: AttendanceAttemptPayload
   ): Promise<AttemptEvaluationResult> {
+    await ScheduleService.sync();
     return withTransaction(() => this.evaluateInTransaction(studentId, payload));
   }
 
@@ -65,7 +67,8 @@ export class PolicyService {
       ...DEFAULT_VERIFICATION_POLICY,
       ...(sessionData.verification_policy_override || {})
     };
-    if (sessionData.origin_radius_meters != null) { policy.maxDistanceMeters = Number(sessionData.origin_radius_meters); policy.requiresGps = true; }
+    // GPS attendance checks are temporarily disabled by product request.
+    policy.requiresGps = false;
     if (policy.declarationRequired && payload.declarationAccepted !== true) throw httpError(400, 'Confirm the physical presence declaration before submitting attendance.');
 
     // Initialize diagnostics
@@ -215,7 +218,7 @@ export class PolicyService {
       }
 
       // Check velocity anomaly if coordinates provided
-      if (!hardFailure && payload.coordinates) {
+      if (policy.requiresGps && !hardFailure && payload.coordinates) {
         const velResult = await TelemetryService.checkVelocityAnomaly(
           studentId,
           payload.coordinates.latitude,
@@ -528,12 +531,14 @@ export class PolicyService {
   static async processProfessorScan(
     professorId: string,
     sessionId: string,
-    studentQrPayload: string
+    studentQrPayload: string,
+    confirmOutsideSchedule = false
   ): Promise<AttemptEvaluationResult> {
-    return withTransaction(() => this.scanInTransaction(professorId, sessionId, studentQrPayload));
+    await ScheduleService.sync();
+    return withTransaction(() => this.scanInTransaction(professorId, sessionId, studentQrPayload, confirmOutsideSchedule));
   }
 
-  private static async scanInTransaction(professorId: string, sessionId: string, studentQrPayload: string): Promise<AttemptEvaluationResult> {
+  private static async scanInTransaction(professorId: string, sessionId: string, studentQrPayload: string, confirmOutsideSchedule: boolean): Promise<AttemptEvaluationResult> {
     const db = await getDb();
     const serverTimestamp = new Date();
 
@@ -560,9 +565,13 @@ export class PolicyService {
     const student = await db.query('SELECT role FROM users WHERE id = $1', [studentId]);
     if (student.rows[0]?.role !== UserRole.STUDENT) throw httpError(403, 'QR must belong to a student.');
     await requireSessionAccess({ userId: studentId, role: UserRole.STUDENT, email: '', fullName: '' }, sessionId);
-    if (sessionData.status !== SessionStatus.ACTIVE || new Date(sessionData.end_time) <= serverTimestamp) throw httpError(409, 'Attendance session is not active.');
     const actor = await db.query('SELECT role FROM users WHERE id = $1', [professorId]);
     if (![UserRole.PROFESSOR, UserRole.ADMIN].includes(actor.rows[0]?.role)) throw httpError(403, 'Staff access required.');
+    if (sessionData.timetable_slot_id) {
+      await requireSessionAccess({ userId: professorId, role: actor.rows[0]?.role, email: '', fullName: '' }, sessionId, true);
+      if (!ScheduleService.isToday(sessionData)) throw httpError(409, 'This pass is not for today.');
+      if (!ScheduleService.inScheduledTime(sessionData) && !confirmOutsideSchedule) throw Object.assign(httpError(409, 'This session has not started or has ended. Continue to mark this student?'), { code: 'OUTSIDE_SCHEDULE' });
+    } else if (sessionData.status !== SessionStatus.ACTIVE || new Date(sessionData.end_time) <= serverTimestamp) throw httpError(409, 'Attendance session is not active.');
 
     // Replay check on student personal QR
     const nonceRes = await QrService.checkAndConsumeNonce(
@@ -593,9 +602,11 @@ export class PolicyService {
     }
 
     const markedBy = isOutOfBatch ? 'PROFESSOR_OUT_OF_BATCH' : 'PROFESSOR';
-    const notes = isOutOfBatch
+    const outsideSchedule = sessionData.timetable_slot_id && !ScheduleService.inScheduledTime(sessionData);
+    let notes = isOutOfBatch
       ? 'Marked PRESENT by professor (out-of-batch proxy/override).'
       : 'Direct physical scan by professor.';
+    if (outsideSchedule) notes += ' Teacher explicitly confirmed marking outside scheduled hours.';
     const decisionReason = isOutOfBatch
       ? 'Direct physical scan by professor (out-of-batch proxy/override).'
       : 'Direct physical scan by professor in classroom.';

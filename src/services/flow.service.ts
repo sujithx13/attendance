@@ -49,7 +49,8 @@ export class FlowService {
       ...DEFAULT_VERIFICATION_POLICY,
       ...(session.verification_policy_override || {})
     };
-    if (session.origin_radius_meters != null) { policy.maxDistanceMeters = Number(session.origin_radius_meters); policy.requiresGps = true; }
+    // GPS attendance checks are temporarily disabled by product request.
+    policy.requiresGps = false;
 
     const steps: FlowStepConfig[] = [];
     let stepOrder = 1;
@@ -211,7 +212,8 @@ export class FlowService {
       },
       policy: {
         ...DEFAULT_VERIFICATION_POLICY,
-        ...(session.verification_policy_override || {})
+        ...(session.verification_policy_override || {}),
+        requiresGps: false
       }
     };
   }

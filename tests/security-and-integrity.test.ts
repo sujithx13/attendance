@@ -86,8 +86,8 @@ export async function testSecurityAndIntegrity(): Promise<void> {
 
     const slot = (await db.query('SELECT id FROM timetable_slots WHERE batch_id IS NOT NULL LIMIT 1')).rows[0];
     assert.ok(slot);
-    const launch: any = await (await call('/sessions/launch-slot', adminToken, { slotId: slot.id })).json();
-    const again: any = await (await call('/sessions/launch-slot', adminToken, { slotId: slot.id })).json();
+    const launch: any = await (await call('/sessions/launch-slot', adminToken, { slotId: slot.id, confirmOutsideSchedule: true })).json();
+    const again: any = await (await call('/sessions/launch-slot', adminToken, { slotId: slot.id, confirmOutsideSchedule: true })).json();
     assert.equal(launch.sessionId, again.sessionId, 'Repeated launch must reuse the active session.');
     const listed: any = await (await call('/sessions', adminToken)).json();
     assert.ok(listed.sessions.some((row: any) => row.id === launch.sessionId), 'Batch-only sessions must remain visible.');
@@ -95,6 +95,7 @@ export async function testSecurityAndIntegrity(): Promise<void> {
     assert.equal(typeof summary.checkInsToday, 'number');
 
     await db.query('DELETE FROM attendance_records WHERE session_id = $1 AND student_id = $2', [sessionId, john]);
+    await db.query("UPDATE sessions SET verification_policy_override = '{\"requiresBle\":true}' WHERE id = $1", [sessionId]);
     const challenge = await PolicyService.evaluateAttempt(john, { sessionId, declarationAccepted: true, clientTimestamp: new Date().toISOString(), qrPayload: QrService.generateSessionBroadcastPayload(sessionId).payload });
     assert.equal(challenge.decision, 'CHALLENGE');
     await assert.rejects(PolicyService.resolveChallenge('usr_prof_ada', challenge.attemptId, 'ACCEPT'), /access/);
@@ -111,6 +112,7 @@ export async function testSecurityAndIntegrity(): Promise<void> {
       body: JSON.stringify({ sessionId, declarationAccepted: true, clientTimestamp: new Date().toISOString(), qrPayload: QrService.generateSessionBroadcastPayload(sessionId).payload, telemetry: { clientIp: '10.77.77.9' } })
     });
     assert.equal(fakeIp.status, 202, 'Spoofed IP must not bypass professor review.');
+    await db.query('UPDATE sessions SET verification_policy_override = NULL WHERE id = $1', [sessionId]);
     const forgedRole = token(john, 'ADMIN');
     assert.equal((await call('/auth/register', forgedRole, { role: 'ADMIN' })).status, 403, 'Current database role must override stale JWT claims.');
     console.log('  ✓ Security, QR sharing, transaction rollback, migrations, WebSockets, and session integration regressions passed');

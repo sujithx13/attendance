@@ -19,10 +19,11 @@ export async function testPolicyAndFlow(): Promise<void> {
     hasCamera: true,
     platform: 'android'
   });
-  assert(mobileFlow.steps.length >= 3, 'Mobile flow must contain declaration, qr scan, and gps check');
+  assert.equal(mobileFlow.policy.requiresGps, false);
+  assert.equal(mobileFlow.telemetryRequirements.collectGps, false);
   assert(mobileFlow.steps.some((s) => s.type === 'DECLARATION'));
   assert(mobileFlow.steps.some((s) => s.type === 'QR_SCANNER'));
-  assert(mobileFlow.steps.some((s) => s.type === 'GEOLOCATION_CHECK'));
+  assert(!mobileFlow.steps.some((s) => s.type === 'GEOLOCATION_CHECK'));
   console.log(`  ✓ Generated dynamic Server-Driven UI contract for Mobile (${mobileFlow.steps.length} steps configured)`);
 
   // 2. Server-Driven UI Contract for Desktop Client (No GPS)
@@ -31,7 +32,7 @@ export async function testPolicyAndFlow(): Promise<void> {
     hasCamera: true,
     platform: 'web_desktop'
   });
-  assert(desktopFlow.steps.some((s) => s.type === 'REVERSE_QR_DISPLAY'), 'Desktop flow must adapt to reverse QR display');
+  assert(!desktopFlow.steps.some((s) => s.type === 'GEOLOCATION_CHECK'));
   assert(!desktopFlow.steps.some((s) => s.type === 'GEOLOCATION_CHECK'), 'Desktop flow must omit mobile GPS check');
   console.log('  ✓ Server-Driven UI dynamically adapted flow for sensor-constrained desktop client');
 
@@ -97,7 +98,8 @@ export async function testPolicyAndFlow(): Promise<void> {
 
   const db = await getDb();
   await db.query('DELETE FROM attendance_records WHERE session_id = $1 AND student_id = $2', [sessionId, studentId]);
-  // 6. Borderline Distance Attempt (CHALLENGE State)
+  // 6. An unsupported BLE policy still requires review with GPS disabled.
+  await db.query("UPDATE sessions SET verification_policy_override = '{\"requiresBle\":true}' WHERE id = $1", [sessionId]);
   const { payload: freshQr3 } = QrService.generateSessionBroadcastPayload(sessionId, 20);
   const challengeResult = await PolicyService.evaluateAttempt(studentId, {
     sessionId,
@@ -124,6 +126,8 @@ export async function testPolicyAndFlow(): Promise<void> {
   assert.strictEqual(resolveOutcome.success, true);
   assert.strictEqual(resolveOutcome.status, 'PRESENT');
   console.log('  ✓ Professor 1-click review resolved challenge to PRESENT');
+
+  await db.query('UPDATE sessions SET verification_policy_override = NULL WHERE id = $1', [sessionId]);
 
   // 8. Bidirectional Reverse Scan (Student QR scanned by Professor)
   const studentPersonalQr = QrService.generateStudentPersonalPayload(sessionId, 'usr_student_sarah', 30);

@@ -8,6 +8,7 @@ import { AttendanceDecision } from '../config/constants.js';
 import { UserRole } from '../config/constants.js';
 import { professorScope, requireSessionAccess, httpError } from '../services/access.service.js';
 import { SessionContextService } from '../services/session-context.service.js';
+import { ScheduleService } from '../services/schedule.service.js';
 
 export class AttendanceController {
   /**
@@ -68,11 +69,11 @@ export class AttendanceController {
       const slot = await db.query('SELECT id FROM timetable_slots WHERE id = $1', [sessionId]);
       if (slot.rows.length) {
         const context = await SessionContextService.forSlot(req.user!, sessionId);
-        if (!context?.sessionActive) throw httpError(409, 'Your professor has not opened attendance for this class yet. Your QR will appear when the session starts.');
+        if (!context?.sessionId) throw httpError(409, 'Personal QR passes are available for today’s classes only.');
         resolvedId = context.sessionId;
       }
       const session = await requireSessionAccess(req.user!, resolvedId);
-      if (session.status !== 'ACTIVE' || new Date(session.end_time) <= new Date()) throw httpError(409, 'No active attendance session for this class. Ask your professor to start one.');
+      if (!ScheduleService.isToday(session)) throw httpError(409, 'Personal QR passes are available for today’s classes only.');
       const { payload, tokenObj } = QrService.generateStudentPersonalPayload(resolvedId, studentId, 30);
       const dataUrl = await QrService.renderQrCode(payload, 'dataUrl');
 
@@ -115,10 +116,10 @@ export class AttendanceController {
     }
 
     try {
-      const result = await PolicyService.processProfessorScan(professorId, sessionId, studentQrPayload);
+      const result = await PolicyService.processProfessorScan(professorId, sessionId, studentQrPayload, req.body.confirmOutsideSchedule === true);
       res.status(200).json(result);
     } catch (err: any) {
-      res.status(err.statusCode || 400).json({ error: 'SCAN_FAILED', message: err.message });
+      res.status(err.statusCode || 400).json({ error: err.code || 'SCAN_FAILED', message: err.message });
     }
   }
 

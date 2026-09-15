@@ -232,7 +232,7 @@ export class TimetableService {
   static async generateSessionsForDate(targetDate: Date): Promise<{ createdCount: number; sessions: any[] }> {
     const db = await getDb();
     const dateStr = targetDate.toISOString().slice(0, 10); // 'YYYY-MM-DD'
-    const dayOfWeek = targetDate.getDay(); // 0-6
+    const dayOfWeek = new Date(`${dateStr}T12:00:00+05:30`).getUTCDay(); // campus date
 
     // Fetch recurring weekly slots matching dayOfWeek + any specific date overrides for today
     const slotsRes = await db.query(
@@ -253,10 +253,11 @@ export class TimetableService {
 
     for (const slot of slotsRes.rows) {
       // Build start_time and end_time timestamps for the target date
-      const startTimeIso = `${dateStr}T${slot.start_time}`;
-      const endTimeIso = `${dateStr}T${slot.end_time}`;
+      const startTimeIso = `${dateStr}T${slot.start_time}+05:30`;
+      const endTimeIso = `${dateStr}T${slot.end_time}+05:30`;
       const startDateTime = new Date(startTimeIso);
       const endDateTime = new Date(endTimeIso);
+      if (endDateTime <= startDateTime) endDateTime.setUTCDate(endDateTime.getUTCDate() + 1);
 
       // Check if session for this slot on this date already exists
       const existingRes = await db.query(

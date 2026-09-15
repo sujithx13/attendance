@@ -5,78 +5,82 @@ import { createApp } from '../src/app.js';
 import { getDb } from '../src/database/db.js';
 import { ENV } from '../src/config/env.js';
 import { QrService } from '../src/services/qr.service.js';
-import { PolicyService } from '../src/services/policy.service.js';
+import { ScheduleService } from '../src/services/schedule.service.js';
 
 export async function testSessionExperience() {
-  console.log('\n--- Session location, student pass and attendance status tests ---');
-  assert.equal(ENV.NODE_ENV, 'test');
+  console.log('\n--- Scheduled attendance, batch teachers, same-day passes and GPS-free checks ---');
   const db = await getDb();
-  await db.query(`INSERT INTO users (id, email, password_hash, full_name, role) VALUES ('usr_location_outsider', 'location-outsider@example.test', 'not-a-login-password', 'Unenrolled test student', 'STUDENT')`);
-  await db.query(`INSERT INTO users (id, email, password_hash, full_name, role) VALUES ('usr_location_student', 'location-student@example.test', 'not-a-login-password', 'Location test student', 'STUDENT')`);
-  await db.query(`INSERT INTO enrollments (id, course_id, student_id, status) VALUES ('enr_location_test', 'crs_cs101', 'usr_location_student', 'ACTIVE')`);
-  // A distinct slot avoids sharing attendance state with earlier suites.
-  await db.query(`INSERT INTO timetable_slots (id, schedule_type, day_of_week, start_time, end_time, target_type, course_id, professor_id, classroom_id)
-    VALUES ('slot_location_test', 'RECURRING_WEEKLY', 4, '10:00', '11:00', 'CLASS', 'crs_cs101', 'usr_prof_alan', 'clr_turing_hall')`);
+  const date = ScheduleService.campusDate();
+  const window = { start_time: '2026-10-29T10:00:00+05:30', end_time: '2026-10-29T11:00:00+05:30' };
+  assert.equal(ScheduleService.inScheduledTime(window, new Date('2026-10-29T04:30:00Z')), true);
+  assert.equal(ScheduleService.inScheduledTime(window, new Date('2026-10-29T05:30:00Z')), false);
+  assert.equal(ScheduleService.campusDate(new Date('2026-10-28T20:00:00Z')), '2026-10-29');
+  await db.query(`INSERT INTO timetable_slots (id, schedule_type, specific_date, start_time, end_time, target_type, course_id, professor_id, classroom_id)
+    VALUES ('slot_daily_test', 'SPECIFIC_DATE', $1, '23:58', '23:59', 'CLASS', 'crs_cs101', 'usr_prof_alan', 'clr_turing_hall')`, [date]);
   const server = http.createServer(createApp());
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}/api/v1`;
   const sign = (userId: string, role: string) => jwt.sign({ userId, role }, ENV.JWT_SECRET, { expiresIn: '1h' });
-  const professor = sign('usr_prof_alan', 'PROFESSOR'), john = sign('usr_location_student', 'STUDENT'), emily = sign('usr_location_outsider', 'STUDENT');
+  const prof = sign('usr_prof_alan', 'PROFESSOR'), other = sign('usr_prof_ada', 'PROFESSOR');
+  const student = sign('usr_student_john', 'STUDENT');
   const request = (path: string, token: string, body?: unknown) => fetch(base + path, { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-  const location = { latitude: 11.0, longitude: 76.0, accuracy: 8, timestamp: Date.now(), radiusMeters: 100 };
   try {
-    const initial = await request('/sessions/for-slot/slot_location_test', john);
+    const initial = await request('/sessions/for-slot/slot_daily_test', student);
     assert.equal(initial.status, 200);
-    assert.equal((await initial.json() as any).sessionActive, false);
-    assert.equal((await request('/attendance/student-qr?sessionId=slot_location_test', john)).status, 409);
-    assert.equal((await request('/sessions/launch-slot', john, { slotId: 'slot_location_test', location })).status, 403);
-    for (const point of [{ ...location, latitude: 999 }, { ...location, accuracy: 300 }, { ...location, mocked: true }, { ...location, timestamp: Date.now() - 90000 }, { ...location, radiusMeters: 999 }]) {
-      assert.equal((await request('/sessions/launch-slot', professor, { slotId: 'slot_location_test', location: point })).status, 400);
-    }
-    const launched = await request('/sessions/launch-slot', professor, { slotId: 'slot_location_test', location });
-    assert.equal(launched.status, 201);
-    const { sessionId } = await launched.json() as any;
-    const again = await request('/sessions/launch-slot', professor, { slotId: 'slot_location_test', location: { ...location, latitude: 12, radiusMeters: 25 } });
-    assert.equal((await again.json() as any).sessionId, sessionId);
-    const stored = (await db.query('SELECT origin_latitude, origin_radius_meters FROM sessions WHERE id = $1', [sessionId])).rows[0];
-    assert.equal(stored.origin_latitude, 11);
-    assert.equal(stored.origin_radius_meters, 100, 'Refreshing or reopening must not move the original center/radius.');
-    assert.equal((await request('/sessions/for-slot/slot_location_test', emily)).status, 403);
-    assert.equal((await request(`/attendance/student-qr?sessionId=${sessionId}`, emily)).status, 403);
-    const passResponse = await request('/attendance/student-qr?sessionId=slot_location_test', john);
-    assert.equal(passResponse.status, 200);
-    const pass = await passResponse.json() as any;
-    assert.equal(pass.sessionId, sessionId);
-    assert.match(pass.dataUrl, /^data:image\/png;base64,/);
-    assert.ok(pass.expiresAt * 1000 > Date.now());
-    assert.equal(QrService.verifyPayload(pass.qrPayload, sessionId, 'STUDENT_PERSONAL').isValid, true);
-    const flow = await (await request(`/flows/student?sessionId=${sessionId}`, john)).json() as any;
-    assert.equal(flow.policy.maxDistanceMeters, 100);
-    assert.equal(flow.steps.find((s: any) => s.type === 'GEOLOCATION_CHECK').metadata.targetLatitude, 11);
-    const attempt = (latitude: number, accuracy = 8) => PolicyService.evaluateAttempt('usr_location_student', { sessionId, declarationAccepted: true, clientTimestamp: new Date().toISOString(), qrPayload: QrService.generateSessionBroadcastPayload(sessionId, 60).payload, coordinates: { latitude, longitude: 76, accuracy } });
-    const outside = await attempt(11.01);
-    assert.equal(outside.decision, 'REJECT');
-    assert.match(outside.decisionReason, /exceeds classroom geofence/, 'The professor origin must be the center actually enforced.');
-    // Remove the deliberate far-away sample so velocity detection does not obscure the next spatial assertion.
-    await db.query('UPDATE attendance_attempts SET submitted_latitude = NULL, submitted_longitude = NULL WHERE session_id = $1', [sessionId]);
-    const poor = await attempt(11, 300);
-    assert.equal(poor.decision, 'REJECT');
-    assert.match(poor.decisionReason, /GPS accuracy too poor/);
-    const accepted = await attempt(11);
-    assert.equal(accepted.decision, 'ACCEPT', JSON.stringify(accepted));
-    let context = await (await request('/sessions/for-slot/slot_location_test', john)).json() as any;
-    assert.equal(context.attendanceStatus, 'MARKED');
-    const timetable = await (await request('/timetable/my', john)).json() as any;
-    assert.equal(timetable.slots.find((s: any) => s.id === 'slot_location_test').attendanceStatus, 'MARKED');
-    await db.query("UPDATE attendance_records SET status = 'CHALLENGED' WHERE session_id = $1", [sessionId]);
-    context = await (await request('/sessions/for-slot/slot_location_test', john)).json() as any;
-    assert.equal(context.attendanceStatus, 'PENDING');
-    const scan = await request('/attendance/professor-scan', professor, { sessionId, studentQrPayload: pass.qrPayload });
-    assert.equal(scan.status, 200, await scan.text());
-    context = await (await request('/sessions/for-slot/slot_location_test', john)).json() as any;
-    assert.equal(context.attendanceStatus, 'MARKED', 'A professor scanning the pass must update the student status.');
-    await db.query("UPDATE sessions SET status = 'COMPLETED' WHERE id = $1", [sessionId]);
-    assert.equal((await request(`/attendance/student-qr?sessionId=${sessionId}`, john)).status, 409);
-    console.log('  ✓ Fixed professor origin, radius enforcement, personal QR, live marked/pending status and ownership passed');
+    const context = await initial.json() as any;
+    assert.ok(context.sessionId, 'Today’s occurrence exists without teacher launch.');
+    const id = context.sessionId;
+    // Freeze this occurrence's schedule outside now; tests do not depend on wall-clock hours.
+    await db.query(`UPDATE sessions SET scheduled_start_at = CURRENT_TIMESTAMP + INTERVAL '1 hour', scheduled_end_at = CURRENT_TIMESTAMP + INTERVAL '2 hours', status = 'SCHEDULED' WHERE id = $1`, [id]);
+    const passRes = await request('/attendance/student-qr?sessionId=slot_daily_test', student);
+    assert.equal(passRes.status, 200, 'Students may show a pass before class.');
+    const pass = await passRes.json() as any;
+    assert.equal(pass.sessionId, id);
+    assert.equal((await request('/sessions/launch-slot', student, { slotId: 'slot_daily_test', confirmOutsideSchedule: true })).status, 403);
+    assert.equal((await request('/sessions/launch-slot', other, { slotId: 'slot_daily_test', confirmOutsideSchedule: true })).status, 403);
+    assert.equal((await request('/attendance/professor-scan', other, { sessionId: id, studentQrPayload: pass.qrPayload, confirmOutsideSchedule: true })).status, 403);
+    const warning = await request('/attendance/professor-scan', prof, { sessionId: id, studentQrPayload: pass.qrPayload });
+    assert.equal(warning.status, 409);
+    assert.equal((await warning.json() as any).error, 'OUTSIDE_SCHEDULE');
+    assert.equal((await db.query('SELECT 1 FROM used_qr_nonces WHERE session_id = $1', [id])).rows.length, 0, 'Warning does not consume pass.');
+    const confirmed = await request('/attendance/professor-scan', prof, { sessionId: id, studentQrPayload: pass.qrPayload, confirmOutsideSchedule: true });
+    assert.equal(confirmed.status, 200, await confirmed.text());
+    assert.equal((await request('/attendance/professor-scan', prof, { sessionId: id, studentQrPayload: pass.qrPayload, confirmOutsideSchedule: true })).status, 400, 'Confirmation cannot bypass replay protection.');
+    assert.equal((await (await request('/sessions/for-slot/slot_daily_test', student)).json() as any).attendanceStatus, 'MARKED');
+    const openWarning = await request('/sessions/launch-slot', prof, { slotId: 'slot_daily_test' });
+    assert.equal((await openWarning.json() as any).error, 'OUTSIDE_SCHEDULE');
+    assert.equal((await request('/sessions/launch-slot', prof, { slotId: 'slot_daily_test', confirmOutsideSchedule: true })).status, 200);
+    const flow = await (await request(`/flows/student?sessionId=${id}`, student)).json() as any;
+    assert.equal(flow.policy.requiresGps, false);
+    assert.equal(flow.steps.some((step: any) => step.type === 'GEOLOCATION_CHECK'), false);
+    const qr = QrService.generateSessionBroadcastPayload(id).payload;
+    const attempt = await request('/attendance/attempt', student, { sessionId: id, declarationAccepted: true, qrPayload: qr });
+    assert.equal(attempt.status, 200, 'Valid QR needs no GPS.');
+    // Expired schedule also requires warning, but may be confirmed.
+    await db.query(`UPDATE sessions SET scheduled_start_at = CURRENT_TIMESTAMP - INTERVAL '2 hours', scheduled_end_at = CURRENT_TIMESTAMP - INTERVAL '1 hour' WHERE id = $1`, [id]);
+    const laterPass = await (await request(`/attendance/student-qr?sessionId=${id}`, student)).json() as any;
+    assert.equal((await request('/attendance/professor-scan', prof, { sessionId: id, studentQrPayload: laterPass.qrPayload })).status, 409);
+    assert.equal((await request('/attendance/professor-scan', prof, { sessionId: id, studentQrPayload: laterPass.qrPayload, confirmOutsideSchedule: true })).status, 200);
+    // Automatic activation and completion at boundaries, without launch.
+    await db.query(`UPDATE sessions SET status = 'SCHEDULED', scheduled_start_at = CURRENT_TIMESTAMP - INTERVAL '1 minute', scheduled_end_at = CURRENT_TIMESTAMP + INTERVAL '1 minute', end_time = CURRENT_TIMESTAMP + INTERVAL '1 minute' WHERE id = $1`, [id]);
+    await ScheduleService.sync();
+    assert.equal((await db.query('SELECT status FROM sessions WHERE id = $1', [id])).rows[0].status, 'ACTIVE');
+    assert.equal((await request('/sessions/launch-slot', prof, { slotId: 'slot_daily_test' })).status, 200);
+    await db.query(`UPDATE sessions SET end_time = CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE id = $1`, [id]);
+    await ScheduleService.sync();
+    assert.equal((await db.query('SELECT status FROM sessions WHERE id = $1', [id])).rows[0].status, 'COMPLETED');
+    // Any assigned batch teacher may display and scan; unrelated teachers may not.
+    const batch = (await db.query('SELECT batch_id FROM batch_members WHERE student_id = $1 LIMIT 1', ['usr_student_john'])).rows[0].batch_id;
+    await db.query(`INSERT INTO batch_professors (id, batch_id, professor_id, role) VALUES ('bp_daily_test', $1, 'usr_prof_ada', 'INSTRUCTOR') ON CONFLICT DO NOTHING`, [batch]);
+    await db.query('UPDATE timetable_slots SET batch_id = $1 WHERE id = $2', [batch, 'slot_daily_test']);
+    await db.query('UPDATE sessions SET batch_id = $1 WHERE id = $2', [batch, id]);
+    assert.equal((await request('/sessions/for-slot/slot_daily_test', other)).status, 200);
+    assert.equal((await request('/sessions/launch-slot', other, { slotId: 'slot_daily_test', confirmOutsideSchedule: true })).status, 200);
+    assert.equal((await request(`/sessions/${id}/qr-export`, other)).status, 200);
+    const batchPass = await (await request(`/attendance/student-qr?sessionId=${id}`, student)).json() as any;
+    assert.equal((await request('/attendance/professor-scan', other, { sessionId: id, studentQrPayload: batchPass.qrPayload, confirmOutsideSchedule: true })).status, 200);
+    await db.query(`UPDATE sessions SET start_time = start_time - INTERVAL '1 day' WHERE id = $1`, [id]);
+    assert.equal((await request(`/attendance/student-qr?sessionId=${id}`, student)).status, 409, 'Yesterday’s pass cannot be issued.');
+    console.log('  ✓ Automatic timing, before/after warnings, same-day passes, saved status, no GPS and batch-teacher access passed');
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 }

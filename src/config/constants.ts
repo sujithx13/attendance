@@ -37,7 +37,7 @@ export enum ViolationType {
 
 export const DEFAULT_VERIFICATION_POLICY = {
   requiresQr: true,
-  requiresGps: true,
+  requiresGps: false,
   requiresBiometric: false,
   requiresBle: false,
   allowMockLocation: false,

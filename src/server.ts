@@ -1,4 +1,5 @@
 import http from 'http';
+import { ScheduleService } from './services/schedule.service.js';
 import { createApp } from './app.js';
 import { ENV } from './config/env.js';
 import { runMigrations } from './database/migrate.js';
@@ -13,6 +14,14 @@ async function startServer(): Promise<void> {
 
     // Run database migrations
     await runMigrations();
+    await ScheduleService.sync();
+    let syncing = false;
+    const scheduleTimer = setInterval(async () => {
+      if (syncing) return; syncing = true;
+      try { await ScheduleService.sync(); } catch (error) { console.error('[Schedule]', error); }
+      finally { syncing = false; }
+    }, 10000);
+    scheduleTimer.unref();
 
     // Create Express app
     const app = createApp();
@@ -32,6 +41,7 @@ async function startServer(): Promise<void> {
     // Handle graceful shutdown
     const shutdown = async (signal: string) => {
       console.log(`\n[Server] Received ${signal}. Gracefully shutting down...`);
+      clearInterval(scheduleTimer);
       server.close(async () => {
         try {
           const db = await getDb();

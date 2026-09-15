@@ -6,9 +6,8 @@ import { QrService } from '../services/qr.service.js';
 import { refreshMaterializedViews } from '../database/materialized-views.js';
 import { UserRole } from '../config/constants.js';
 import { requireSessionAccess, professorScope, httpError } from '../services/access.service.js';
-import { withTransaction } from '../database/db.js';
-import { setSessionOrigin, validateSessionLocation } from '../services/session-location.service.js';
 import { SessionContextService } from '../services/session-context.service.js';
+import { ScheduleService } from '../services/schedule.service.js';
 
 export class SessionController {
   static async slotContext(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -105,7 +104,17 @@ export class SessionController {
   static async startSession(req: AuthenticatedRequest, res: Response): Promise<void> {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) as string;
     const db = await getDb();
-    await requireSessionAccess(req.user!, id, true);
+    const session = await requireSessionAccess(req.user!, id, true);
+    if (session.timetable_slot_id && !ScheduleService.inScheduledTime(session)) {
+      if (req.body.confirmOutsideSchedule !== true) {
+        res.status(409).json({ error: 'OUTSIDE_SCHEDULE', message: 'This session has not started or has ended. Continue anyway?' });
+        return;
+      }
+      if (!ScheduleService.isToday(session)) throw httpError(409, 'Only today’s sessions may be opened.');
+      await ScheduleService.openForTeacher(id);
+      res.json({ success: true });
+      return;
+    }
 
     await db.query(
       `UPDATE sessions SET status = 'ACTIVE' WHERE id = $1`,
@@ -134,60 +143,26 @@ export class SessionController {
   }
 
   static async launchSlotSession(req: AuthenticatedRequest, res: Response): Promise<void> {
-    const result = await withTransaction(() => SessionController.launchSlotInTransaction(req));
-    res.status(result.statusCode).json(result.payload);
-  }
-
-  private static async launchSlotInTransaction(req: AuthenticatedRequest): Promise<{ statusCode: number; payload: { sessionId: string; status: string; message: string } }> {
-    const { slotId, batchId, location } = req.body;
-    if (location !== undefined) validateSessionLocation(location);
-    const professorId = req.user?.userId;
-    const db = await getDb();
-
-    let resolvedBatchId = batchId;
-    let resolvedRoomId = 'clr_turing_hall';
-    let courseId: string | null = null;
-
-    if (slotId) {
-      const slotRes = await db.query('SELECT * FROM timetable_slots WHERE id = $1 FOR UPDATE', [slotId]);
-      if (!slotRes.rows.length) throw httpError(404, 'Timetable slot not found.');
-      if (slotRes.rows.length > 0) {
-        const slot = slotRes.rows[0];
-        if (batchId && batchId !== slot.batch_id) throw httpError(400, 'Batch does not match timetable slot.');
-        if (req.user!.role !== UserRole.ADMIN && slot.professor_id !== professorId) throw httpError(403, 'Only the assigned professor can launch this slot.');
-        courseId = slot.course_id;
-        const existing = await db.query("SELECT id FROM sessions WHERE timetable_slot_id = $1 AND status = 'ACTIVE' AND end_time > CURRENT_TIMESTAMP ORDER BY start_time DESC LIMIT 1", [slotId]);
-        if (existing.rows[0]) {
-          if (location !== undefined) await setSessionOrigin(existing.rows[0].id, location);
-          return { statusCode: 200, payload: { sessionId: existing.rows[0].id, status: 'ACTIVE', message: 'Existing session is active.' } };
-        }
-        if (!resolvedBatchId) resolvedBatchId = slotRes.rows[0].batch_id;
-        if (slotRes.rows[0].classroom_id) resolvedRoomId = slotRes.rows[0].classroom_id;
-      }
-    }
+    const { slotId, batchId, confirmOutsideSchedule } = req.body;
     if (!slotId) throw httpError(400, 'A timetable slot is required.');
-
-    const roomRes = await db.query('SELECT id FROM classrooms LIMIT 1');
-    if (roomRes.rows.length > 0 && (!resolvedRoomId || resolvedRoomId === 'clr_turing_hall')) {
-      resolvedRoomId = roomRes.rows[0].id;
+    const db = await getDb();
+    const found = await db.query('SELECT * FROM timetable_slots WHERE id = $1 AND is_active = TRUE', [slotId]);
+    const slot = found.rows[0];
+    if (!slot) throw httpError(404, 'Class not found.');
+    if (batchId && batchId !== slot.batch_id) throw httpError(400, 'Batch does not match timetable slot.');
+    if (req.user!.role !== UserRole.ADMIN) {
+      const access = await db.query(`SELECT 1 FROM timetable_slots ts WHERE ts.id = $1 AND ${professorScope('ts', '$2')}`, [slotId, req.user!.userId]);
+      if (!access.rows.length) throw httpError(403, 'Only teachers assigned to this class or batch can open it.');
     }
-
-    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const now = new Date();
-    const ends = new Date(now.getTime() + 120 * 60 * 1000); // 2 hours active
-
-    await db.query(
-      `INSERT INTO sessions (id, batch_id, professor_id, classroom_id, start_time, end_time, status, course_id, timetable_slot_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', $7, $8)`,
-      [sessionId, resolvedBatchId || null, professorId, resolvedRoomId, now, ends, courseId, slotId]
-    );
-
-    if (location !== undefined) await setSessionOrigin(sessionId, location);
-    return { statusCode: 201, payload: {
-      message: 'Live attendance session activated!',
-      sessionId,
-      status: 'ACTIVE'
-    } };
+    const session = await ScheduleService.ensureToday(slotId, true);
+    if (!session) throw httpError(409, 'This class is not available today.');
+    if (!ScheduleService.inScheduledTime(session) && confirmOutsideSchedule !== true) {
+      res.status(409).json({ error: 'OUTSIDE_SCHEDULE', message: 'This session is outside its scheduled time. Continue to display its QR?' });
+      return;
+    }
+    if (!ScheduleService.inScheduledTime(session)) await ScheduleService.openForTeacher(session.id);
+    else await db.query("UPDATE sessions SET status = 'ACTIVE', end_time = COALESCE(scheduled_end_at, end_time) WHERE id = $1", [session.id]);
+    res.json({ sessionId: session.id, status: 'ACTIVE' });
   }
 
   /**
@@ -197,6 +172,7 @@ export class SessionController {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) as string;
     const format = (req.query.format as 'png' | 'svg' | 'dataUrl') || 'dataUrl';
     const expiresInSeconds = parseInt(req.query.expiresInSeconds as string || '300', 10);
+    await ScheduleService.sync();
     const session = await requireSessionAccess(req.user!, id, true);
     if (session.status !== 'ACTIVE' || new Date(session.end_time) <= new Date()) throw httpError(409, 'Session is not active.');
     if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 1 || expiresInSeconds > 900) throw httpError(400, 'QR expiration must be between 1 and 900 seconds.');
@@ -236,6 +212,7 @@ export class SessionController {
    */
   static async getActiveQr(req: AuthenticatedRequest, res: Response): Promise<void> {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) as string;
+    await ScheduleService.sync();
     const session = await requireSessionAccess(req.user!, id, true);
     if (session.status !== 'ACTIVE' || new Date(session.end_time) <= new Date()) throw httpError(409, 'Session is not active.');
     const { payload, tokenObj } = QrService.generateSessionBroadcastPayload(id);
