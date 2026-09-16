@@ -1,5 +1,7 @@
 # Work completed and handoff status
 
+For the detailed latest implementation, validation evidence, delivery state and next-agent guidance, read [AI handoff — 29 October 2026](AI-HANDOFF-2026-10-29.md).
+
 **Updated workflow:** [Current mobile attendance rules](CURRENT-MOBILE-WORKFLOW.md) supersede the manual-start/GPS descriptions below. Scheduled sessions open automatically; teachers confirm out-of-time actions; students can show same-day passes; GPS checks are paused.
 
 Updated 2026-10-29. This describes the source included in this repository, not a promise that a temporary tunnel remains online.

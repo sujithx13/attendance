@@ -2,7 +2,7 @@
 
 ## Start here
 
-Read `README.md`, `docs/CURRENT-MOBILE-WORKFLOW.md`, `docs/ARCHITECTURE.md`, `docs/WORK-COMPLETED.md` and the relevant setup/build guide before changing behavior. Inspect `git status`, the active branch and the actual files. Existing uncommitted changes can belong to the user; never discard them wholesale.
+Read `README.md`, `docs/AI-HANDOFF-2026-10-29.md`, `docs/CURRENT-MOBILE-WORKFLOW.md`, `docs/ARCHITECTURE.md`, `docs/WORK-COMPLETED.md` and the relevant setup/build guide before changing behavior. Inspect `git status`, the active branch and the actual files. Existing uncommitted changes can belong to the user; never discard them wholesale.
 
 The mobile directory has its own `AGENTS.md`: read the exact Expo SDK 57 documentation before editing mobile code. Do not assume an older Expo/RN API. This is a three-package repository, not an npm workspace.
 
@@ -21,7 +21,7 @@ The mobile directory has its own `AGENTS.md`: read the exact Expo SDK 57 documen
 
 1. The backend makes attendance decisions. Decoding a QR in the UI is not proof of attendance.
 2. Preserve `ACCEPT`, `CHALLENGE`, `REJECT` and distinguish accepted, pending and unconfirmed network outcomes.
-3. Session IDs and timetable slot IDs are different. Resolve a slot through session context; personal passes must use an active real session.
+3. Session IDs and timetable slot IDs are different. Resolve a slot through session context; personal passes must use today’s real session occurrence; it need not be active for the student to display a pass.
 4. A selected-session scanner rejects a code for another session before submission.
 5. Sessions open automatically at their scheduled campus time (Asia/Kolkata). Teachers must explicitly confirm classroom QR display or personal-pass scans outside scheduled hours. Warnings must not consume QR nonces or write attendance.
 6. GPS attendance checks are currently disabled at the user’s request, including older origin/policy overrides. Do not request phone location. Preserve the unused schema/utilities without presenting GPS as active.
@@ -62,6 +62,6 @@ Do not print `.env` contents, access tokens, passwords from live systems or data
 
 The user reported dissatisfaction with broader changes beyond the requested fixes. Read `docs/OLD-APP-AND-CHANGES.md` before any further redesign. Preserve existing visual sections, terminology and role-specific features unless the requested task calls for changing them. Do not treat the current simplified UI as an accepted final design. For restoration, identify the intended historical version/area and preserve current security, persistence and session contracts.
 
-Prefer small coherent changes in shared API types, services and UI components. Update the relevant documentation when behavior changes. Keep user-facing copy simple: session name/time/room/professor/status, scanner and personal QR tabs. Missing course titles currently fall back to `Class session`; do not reintroduce batch names as the student-facing session title without product direction.
+Prefer small coherent changes in shared API types, services and UI components. Update the relevant documentation when behavior changes. Keep timetable cards limited to session name, time and saved attendance status. Preserve dashboard Home, student Scan/My QR tabs and faculty QR/Scan tabs. Missing course titles currently fall back to `Class session`; do not reintroduce batch names as the student-facing session title without product direction.
 
 The backlog in `docs/WORK-COMPLETED.md` identifies unfinished production work. Do not describe planned features as implemented. Report exactly what was checked, limitations and changed files. Commit source and docs together when behavior changes, and preserve unrelated user configuration.

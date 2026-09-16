@@ -8,6 +8,8 @@ Students open a scheduled session, scan its classroom QR, and see their saved at
 
 See [Current mobile workflow](docs/CURRENT-MOBILE-WORKFLOW.md) for the latest dashboard, timetable, same-day pass and timing rules.
 
+For implementation details and future AI-agent guidance, see the [latest handoff](docs/AI-HANDOFF-2026-10-29.md).
+
 ## Documentation
 
 | Document | Read it for |
