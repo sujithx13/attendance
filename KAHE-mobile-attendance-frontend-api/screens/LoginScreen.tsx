@@ -49,7 +49,7 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (auth: AuthS
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.loginContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="none" contentContainerStyle={styles.loginContainer} showsVerticalScrollIndicator={false}>
         {/* University Crest Header */}
         <View style={styles.loginHeader}>
           <View style={styles.crestCircle}>

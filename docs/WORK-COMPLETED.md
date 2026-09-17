@@ -115,3 +115,9 @@ The mobile suite passed 28 tests. Mobile TypeScript, backend compilation and the
 ## Related historical notes
 
 [REVIEW-FIXES.md](../REVIEW-FIXES.md) records the earlier review corrections. [PHONE-TESTING.md](../PHONE-TESTING.md) is a local preview snapshot with an APK hash and temporary URL, not a permanent service locator. The maintained setup/build guides should be used for a fresh checkout.
+
+## Input focus and overview follow-up
+
+The admin modal now initializes focus only when it opens. Updating an inline close callback while typing no longer tears down the focus effect and focuses the dialog again; Escape uses the latest callback and closing restores the previous focus/scroll state. The overview no longer fetches or displays campus notices. Department/batch notice tools remain available.
+
+Mobile login, profile and modal forms explicitly retain keyboard taps and disable scroll-triggered keyboard dismissal. These settings address keyboard interaction; native-device confirmation of the reported typing issue is still required.

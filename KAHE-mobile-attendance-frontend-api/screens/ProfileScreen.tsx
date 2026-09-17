@@ -81,7 +81,7 @@ export function ProfileScreen({ auth, onBack }: { auth: AuthSession; onBack: () 
     : "KA";
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
+    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="none" style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
       <Back onPress={onBack} />
       <View style={styles.screenHeader}>
         <Text style={styles.screenKicker}>MEMBERSHIP RECORD</Text>

@@ -9,7 +9,7 @@ export function ModalViewport({ children, onClose }: { children: React.ReactNode
   return <Modal visible transparent animationType="fade" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.overlay }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>{children}</ScrollView>
+        <ScrollView keyboardDismissMode="none" keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>{children}</ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   </Modal>;

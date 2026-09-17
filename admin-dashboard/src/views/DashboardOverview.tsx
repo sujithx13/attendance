@@ -9,14 +9,12 @@ import {
   UserPlus,
   Plus,
   ShieldAlert,
-  Bell,
-  Clock,
   CheckCircle2,
   Layers
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import type { NavView } from '../components/layout/Sidebar.js';
-import type { User, Department, Batch, Announcement } from '../types/index.js';
+import type { User, Department, Batch } from '../types/index.js';
 
 interface DashboardOverviewProps {
   onNavigate: (view: NavView) => void;
@@ -26,7 +24,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [generating, setGenerating] = useState(false);
   const [genMessage, setGenMessage] = useState('');
   const [slotCount, setSlotCount] = useState<number | null>(null);
@@ -35,17 +32,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   useEffect(() => {
     const loadOverviewData = async () => {
       try {
-        const [usersRes, deptRes, batchRes, annRes, timetableRes] = await Promise.all([
+        const [usersRes, deptRes, batchRes, timetableRes] = await Promise.all([
           api.getUsers(),
           api.getDepartments(),
           api.getBatches(),
-          api.getAnnouncements(),
           api.getTimetableSlots()
         ]);
         setUsers(usersRes.users || []);
         setDepartments(deptRes.departments || []);
         setBatches(batchRes.batches || []);
-        setAnnouncements(annRes.announcements || []);
         setSlotCount(timetableRes.slots.length);
       } catch (err) {
         console.error('Failed to load dashboard overview data', err);
@@ -201,8 +196,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         </div>
       </div>
 
-      {/* Quick Launch & Announcements Grid */}
-      <div className="overview-secondary-grid">
+      {/* Quick management actions */}
+      <div className="overview-actions">
         {/* Quick Management Shortcuts */}
         <div className="card" style={{ padding: '24px' }}>
           <h3 className="card-title" style={{ marginBottom: '18px' }}>
@@ -260,55 +255,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           </div>
         </div>
 
-        {/* Campus Announcements Board */}
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-            <h3 className="card-title">
-              <Bell size={18} color="var(--primary-container)" />
-              <span>Campus notices</span>
-            </h3>
-            <span className="badge badge-emerald">
-              {announcements.length} active notices
-            </span>
-          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '280px', overflowY: 'auto' }}>
-            {announcements.length === 0 ? (
-              <div style={{ fontSize: '13px', color: 'var(--secondary)', textAlign: 'center', padding: '36px' }}>
-                No active announcements published.
-              </div>
-            ) : (
-              announcements.map((a) => {
-                const isUrgent = a.priority === 'URGENT';
-                const isAcademic = a.priority === 'ACADEMIC';
-                return (
-                  <div
-                    key={a.id}
-                    style={{
-                      padding: '14px 16px',
-                      backgroundColor: 'var(--surface-container-low)',
-                      borderLeft: `4px solid ${isUrgent ? 'var(--error)' : isAcademic ? 'var(--info)' : 'var(--primary-container)'}`,
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--outline)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--on-surface)' }}>{a.title}</span>
-                      <span className={`badge ${isUrgent ? 'badge-rose' : isAcademic ? 'badge-blue' : 'badge-emerald'}`}>
-                        {a.priority}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '12.5px', color: 'var(--secondary)', lineHeight: '1.4' }}>{a.content}</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--secondary)', marginTop: '8px' }}>
-                      <Clock size={11} />
-                      <span>{a.author_name || a.authorName || 'Campus Administration'}</span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
