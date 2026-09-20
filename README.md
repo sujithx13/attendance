@@ -6,6 +6,8 @@ Students open a scheduled session, scan its classroom QR, and see their saved at
 
 **Current state:** working development/phone-testing implementation; Android preview version **1.0.2**, version code **3**. This repository includes source, migrations and tests. Local databases, secrets, generated Android projects and APKs are intentionally excluded. A Cloudflare tunnel exposes a running API; the backend is not a Cloudflare Worker, and the admin dashboard is a client of the backend.
 
+See [Batch administration and mobile accounts](docs/BATCH-ADMIN-IMPLEMENTATION.md) for batch attendance exports, day templates, persistent sign-in, and batch login approvals.
+
 See [Current mobile workflow](docs/CURRENT-MOBILE-WORKFLOW.md) for the latest dashboard, timetable, same-day pass and timing rules.
 
 For implementation details and future AI-agent guidance, see the [latest handoff](docs/AI-HANDOFF-2026-10-29.md).

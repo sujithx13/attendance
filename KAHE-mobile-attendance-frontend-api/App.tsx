@@ -1,3 +1,5 @@
+import { readAuth, saveAuth } from './lib/auth-storage';
+import { logout } from './lib/api';
 import { useState, useEffect } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -22,7 +24,7 @@ export default function App() {
 
 function AttendanceApp() {
   const [connectionReady, setConnectionReady] = useState(false);
-  useEffect(() => { void initializeConnection().finally(() => setConnectionReady(true)); }, []);
+  useEffect(() => { void initializeConnection().then(readAuth).then(setAuth).finally(() => setConnectionReady(true)); }, []);
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -32,7 +34,7 @@ function AttendanceApp() {
   const [facultyQrSlot, setFacultyQrSlot] = useState<MobileTimetableSlot | null>(null);
 
   if (!connectionReady) return <View style={styles.permissionScreen}><Text style={styles.loadingText}>Opening attendance...</Text></View>;
-  if (!auth) return <LoginScreen onAuthenticated={setAuth} />;
+  if (!auth) return <LoginScreen onAuthenticated={session => { void saveAuth(session).then(() => setAuth(session)).catch(() => alert('Could not save sign-in. Please try again.')); }} />;
 
   const role: Role =
     auth.user.role.toLowerCase().includes("prof") || auth.user.role.toLowerCase().includes("faculty")
@@ -49,7 +51,6 @@ function AttendanceApp() {
           name={auth.user.fullName}
           role={role}
           onOpenProfile={() => setScreen("profile")}
-          onSignOut={() => setShowSignOutConfirm(true)}
         />}
 
         {screen === "home" && (
@@ -81,7 +82,7 @@ function AttendanceApp() {
           />
         )}
 
-        {screen === "profile" && <ProfileScreen auth={auth} onBack={() => setScreen("home")} />}
+        {screen === "profile" && <ProfileScreen auth={auth} onBack={() => setScreen("home")} onTestingLogout={() => setShowSignOutConfirm(true)} />}
 
         {screen !== 'scanner' && <Dock role={role} screen={screen} onNavigate={setScreen} />}
 
@@ -103,11 +104,7 @@ function AttendanceApp() {
           confirmText="Yes, Sign Out"
           cancelText="Stay Logged In"
           isDestructive={true}
-          onConfirm={() => {
-            setShowSignOutConfirm(false);
-            setAuth(null);
-            setScreen("home");
-          }}
+          onConfirm={() => { void logout(auth.token).then(() => saveAuth(null)).then(() => { setShowSignOutConfirm(false); setAuth(null); setScreen("home"); }).catch(() => alert("Logout could not reach the server. Your account remains signed in; please retry.")); }}
           onCancel={() => setShowSignOutConfirm(false)}
         />
       </View>

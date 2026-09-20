@@ -151,12 +151,10 @@ export function Header({
   name,
   role,
   onOpenProfile,
-  onSignOut
 }: {
   name: string;
   role: Role;
   onOpenProfile: () => void;
-  onSignOut: () => void;
 }) {
   const initials = name
     ? name
@@ -188,9 +186,7 @@ export function Header({
         <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={onOpenProfile} style={styles.headerIconBtn}>
           <MaterialCommunityIcons name={iconName("account-cog-outline")} size={20} color={colors.textMuted} />
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Sign out" onPress={onSignOut} style={[styles.headerIconBtn, { backgroundColor: colors.dangerSoft }]}>
-          <MaterialCommunityIcons name={iconName("logout")} size={18} color={colors.danger} />
-        </Pressable>
+
       </View>
     </View>
   );

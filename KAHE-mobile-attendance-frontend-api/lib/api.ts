@@ -242,3 +242,5 @@ export function launchSlotSession(token: string, slotId?: string, batchId?: stri
 export function getSessionRecords(token: string, sessionId: string) {
   return request<{ records: { id: string; status: string; full_name: string; verified_at: string }[] }>(`/attendance/records?sessionId=${encodeURIComponent(sessionId)}`, { headers: authHeaders(token) });
 }
+
+export function logout(token: string) { return request('/auth/logout', { method:'POST', headers:authHeaders(token) }); }
