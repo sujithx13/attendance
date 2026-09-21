@@ -1,0 +1,9 @@
+import { useEffect,useState } from 'react';
+import { api } from '../services/api.js';
+export function BatchLoginAccess({batchId}:{batchId:string}) {
+ const [data,setData]=useState<any>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const load=async()=>{try{setData(await api.batchLoginAccess(batchId));setError('');}catch(e){setError((e as Error).message);}};
+ useEffect(()=>{let active=true; const refresh=async()=>{try{const value=await api.batchLoginAccess(batchId);if(active){setData(value);setError('');}}catch(e){if(active)setError((e as Error).message);}};void refresh();const timer=setInterval(refresh,5000);return()=>{active=false;clearInterval(timer);};},[batchId]);
+ const change=async(action:()=>Promise<unknown>)=>{setBusy(true);try{await action();await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
+ return <section className="card"><h3>Batch login access & alerts</h3>{error&&<p role="alert">{error}</p>}{data&&<><label><input type="checkbox" checked={data.allowAllLogins} disabled={busy} onChange={e=>void change(()=>api.setBatchLoginAccess(batchId,e.target.checked))}/> Allow all logins</label><p>Turn this on for initial sign-ins. When off, new sign-ins require approval. Existing sessions stay signed in. Members of several restricted batches need approval from each batch.</p><h4>Login requests</h4>{!data.requests.length&&<p>No requests.</p>}{data.requests.map((r:any)=><div key={r.userId}>{r.name} · {r.email} · {r.status} {r.status==='PENDING'&&<button className="btn btn-primary" disabled={busy} onClick={()=>void change(()=>api.approveBatchLogin(batchId,r.userId))}>Approve login</button>}</div>)}<h4>Account alerts</h4>{data.events.map((e:any)=><p key={e.id}>{e.name} · {e.event==='LOGOUT'?'Logged out':'Logged in'} · {new Date(e.createdAt).toLocaleString()}</p>)}</>}</section>;
+}

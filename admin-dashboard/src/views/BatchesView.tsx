@@ -1,3 +1,6 @@
+import { DayTemplateFields, type DayOptions } from './DayTemplateFields.js';
+import { BatchLoginAccess } from './BatchLoginAccess.js';
+import { BatchAttendance } from './BatchAttendance.js';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
@@ -13,7 +16,6 @@ import {
   BookOpen,
   GraduationCap,
   Calendar,
-  Bell,
   ShieldCheck,
   MapPin,
   Copy,
@@ -100,6 +102,7 @@ export const BatchesView: React.FC = () => {
   const [slotRoomId, setSlotRoomId] = useState('');
 
   // Apply Template Modal State
+  const [dayOptions,setDayOptions] = useState<DayOptions>({sourceDay:1,daysOfWeek:[1]});
   const [isApplyTemplateOpen, setIsApplyTemplateOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
@@ -426,7 +429,7 @@ export const BatchesView: React.FC = () => {
     e.preventDefault();
     if (!selectedBatch || !selectedTemplateId) return;
     try {
-      const res = await api.applyTemplateToCohort(selectedTemplateId, 'BATCH', selectedBatch.id);
+      const res = await api.applyTemplateToCohort(selectedTemplateId, 'BATCH', selectedBatch.id, dayOptions);
       setFeedback({ type: 'success', message: `Template applied! Scheduled ${res.appliedCount} recurring weekly slots.` });
       setIsApplyTemplateOpen(false);
       const slotsRes = await api.getTimetableSlots({ batchId: selectedBatch.id });
@@ -486,6 +489,7 @@ export const BatchesView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      <div style={{ display: selectedBatch ? 'none' : 'contents' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -677,14 +681,10 @@ export const BatchesView: React.FC = () => {
         )}
       </div>
 
+      </div>
       {/* Cohort Detail Hub Modal */}
       {selectedBatch && (
-        <Modal
-          isOpen={Boolean(selectedBatch)}
-          onClose={() => setSelectedBatch(null)}
-          title={`Batch Cohort Hub: ${selectedBatch.name} (${selectedBatch.code})`}
-          maxWidth="920px"
-        >
+        <section className="batch-detail-page">{feedback && <p role="status">{feedback.message}</p>}<button className="btn btn-secondary" onClick={() => setSelectedBatch(null)}>Back to batches</button><h2>{selectedBatch.name} ({selectedBatch.code})</h2><BatchAttendance batchId={selectedBatch.id} /><BatchLoginAccess batchId={selectedBatch.id} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Header Banner */}
             <div
@@ -758,13 +758,6 @@ export const BatchesView: React.FC = () => {
               >
                 <Calendar size={14} style={{ display: 'inline', marginRight: '6px' }} />
                 Cohort Timetable ({timetable.length})
-              </button>
-              <button
-                className={`tab-pill ${activeTab === 'notices' ? 'active' : ''}`}
-                onClick={() => setActiveTab('notices')}
-              >
-                <Bell size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Announcements ({announcements.length})
               </button>
             </div>
 
@@ -934,7 +927,7 @@ export const BatchesView: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Student Name</th>
-                        <th>Email & Enrollment ID</th>
+                        <th>Email & Register number</th>
                         <th>Department</th>
                         <th>Year</th>
                         <th style={{ textAlign: 'right' }}>Actions</th>
@@ -1141,7 +1134,7 @@ export const BatchesView: React.FC = () => {
               </div>
             )}
           </div>
-        </Modal>
+        </section>
       )}
 
       {/* CONFIRM ACTION DIALOG FOR BATCHES */}
@@ -1297,7 +1290,7 @@ export const BatchesView: React.FC = () => {
           onClose={() => setIsApplyTemplateOpen(false)}
           title={`Apply Schedule Template to ${selectedBatch.name}`}
         >
-          <form onSubmit={handleApplyTemplate}>
+          <form onSubmit={handleApplyTemplate}><DayTemplateFields value={dayOptions} onChange={setDayOptions}/>
             <div className="form-group">
               <label className="form-label">CHOOSE SAVED SCHEDULE TEMPLATE</label>
               <select
@@ -1392,20 +1385,7 @@ export const BatchesView: React.FC = () => {
               </div>
             </label>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13.5px' }}>
-              <input
-                type="checkbox"
-                checked={allowMultiYears}
-                onChange={(e) => setAllowMultiYears(e.target.checked)}
-                style={{ width: '16px', height: '16px', accentColor: 'var(--primary-container)' }}
-              />
-              <div>
-                <strong>Allow Multiple Academic Years of Study</strong>
-                <p style={{ fontSize: '12px', color: 'var(--secondary)' }}>
-                  Permits combining students from different years (e.g. Years 2 & 3).
-                </p>
-              </div>
-            </label>
+
 
             <div style={{ marginTop: '4px' }}>
               <span className="form-label">ELIGIBLE ACADEMIC YEARS:</span>

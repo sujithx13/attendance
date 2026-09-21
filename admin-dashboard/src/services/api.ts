@@ -43,6 +43,11 @@ class ApiClient {
     return payload as T;
   }
 
+  async batchAttendance(id: string, date: string): Promise<any> { return this.request(`/batches/${encodeURIComponent(id)}/attendance?date=${encodeURIComponent(date)}`); }
+
+  batchLoginAccess(id:string):Promise<any> { return this.request(`/batches/${encodeURIComponent(id)}/login-access`); }
+  setBatchLoginAccess(id:string,allowAllLogins:boolean) { return this.request(`/batches/${encodeURIComponent(id)}/login-access`,{method:'PATCH',body:JSON.stringify({allowAllLogins})}); }
+  approveBatchLogin(id:string,userId:string) { return this.request(`/batches/${encodeURIComponent(id)}/login-access/${encodeURIComponent(userId)}/approve`,{method:'POST'}); }
   // Auth
   async login(email: string, password: string): Promise<{ token: string; user: User }> {
     const res = await this.request<{ token: string; user: User }>('/auth/login', {
@@ -82,6 +87,7 @@ class ApiClient {
     password?: string;
     role: string;
     fullName: string;
+    phoneNumber?: string;
     enrollmentId?: string;
     departmentId?: string;
     yearOfStudy?: number;
@@ -368,11 +374,12 @@ class ApiClient {
   async applyTemplateToCohort(
     templateId: string,
     targetType: 'CLASS' | 'BATCH',
-    targetId: string
+    targetId: string,
+    dayOptions?: {sourceDay:number;daysOfWeek?:number[];dates?:string[]}
   ): Promise<{ message: string; appliedCount: number }> {
     return this.request<{ message: string; appliedCount: number }>(`/timetable/templates/${encodeURIComponent(templateId)}/apply`, {
       method: 'POST',
-      body: JSON.stringify({ targetType, targetId })
+      body: JSON.stringify({ targetType, targetId, ...dayOptions })
     });
   }
 

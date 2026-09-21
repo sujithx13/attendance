@@ -114,11 +114,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open 
 
         <button
           className={`nav-item ${currentView === 'monitor' ? 'active' : ''}`}
-          onClick={() => onNavigate('monitor')}
+          onClick={() => onNavigate('batches')}
         >
           <div className="nav-item-content">
             <Activity size={17} />
-            <span>Live attendance</span>
+            <span>Batch attendance & alerts</span>
           </div>
           {currentView === 'monitor' && <ChevronRight size={14} />}
         </button>

@@ -13,6 +13,7 @@ export interface User {
   departmentName?: string;
   yearOfStudy?: number;
   year_of_study?: number;
+  phoneNumber?: string;
   photoUrl?: string;
   createdAt?: string;
 }
