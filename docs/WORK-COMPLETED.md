@@ -121,3 +121,7 @@ The mobile suite passed 28 tests. Mobile TypeScript, backend compilation and the
 The admin modal now initializes focus only when it opens. Updating an inline close callback while typing no longer tears down the focus effect and focuses the dialog again; Escape uses the latest callback and closing restores the previous focus/scroll state. The overview no longer fetches or displays campus notices. Department/batch notice tools remain available.
 
 Mobile login, profile and modal forms explicitly retain keyboard taps and disable scroll-triggered keyboard dismissal. These settings address keyboard interaction; native-device confirmation of the reported typing issue is still required.
+
+## Batch administration and persistent mobile accounts
+
+See [BATCH-ADMIN-IMPLEMENTATION.md](BATCH-ADMIN-IMPLEMENTATION.md) for the new batch pages, Excel attendance export, day templates, persistent mobile sessions, testing-only logout and per-batch login approval workflow. Migrations 013–015 are append-only.

@@ -570,7 +570,7 @@ export const ClassesView: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Student Name</th>
-                        <th>Email & Enrollment ID</th>
+                        <th>Email & Register number</th>
                         <th>Department</th>
                         <th>Year</th>
                         <th>Attendance Standing</th>

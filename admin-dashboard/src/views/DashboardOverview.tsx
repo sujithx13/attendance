@@ -4,7 +4,6 @@ import {
   GraduationCap,
   Building2,
   CalendarCheck,
-  Zap,
   ArrowRight,
   UserPlus,
   Plus,
@@ -24,8 +23,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [generating, setGenerating] = useState(false);
-  const [genMessage, setGenMessage] = useState('');
+  const genMessage = '';
   const [slotCount, setSlotCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
 
@@ -53,19 +51,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const studentsCount = users.filter((u) => u.role === 'STUDENT').length;
   const facultyCount = users.filter((u) => u.role === 'PROFESSOR').length;
 
-  const handleGenerateToday = async () => {
-    setGenerating(true);
-    setGenMessage('');
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const res = await api.generateSessionsForDate(today);
-      setGenMessage(`Spawned ${res.sessionsGenerated} live class/batch attendance sessions for today!`);
-    } catch (err: any) {
-      setGenMessage(err.message || 'Failed to spawn sessions.');
-    } finally {
-      setGenerating(false);
-    }
-  };
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -88,7 +74,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span className="badge badge-emerald">CAMPUS OVERVIEW</span>
-            <span style={{ fontSize: '12px', color: 'var(--secondary)' }}>Odd Semester 2026-27</span>
           </div>
           <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--on-surface)' }}>
             Your campus at a glance
@@ -97,16 +82,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             Manage people, organize classes and keep track of attendance from one workspace.
           </p>
         </div>
-
-        <button
-          className="btn btn-primary"
-          style={{ padding: '12px 24px', fontSize: '14px' }}
-          onClick={handleGenerateToday}
-          disabled={generating}
-        >
-          <Zap size={16} />
-          <span>{generating ? 'Spawning Sessions…' : "Prepare today's sessions"}</span>
-        </button>
       </div>
 
       {genMessage && (
@@ -244,7 +219,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             <button
               className="btn btn-secondary"
               style={{ justifyContent: 'space-between', padding: '12px 16px' }}
-              onClick={() => onNavigate('monitor')}
+              onClick={() => onNavigate('batches')}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <ShieldAlert size={16} color="var(--error)" />

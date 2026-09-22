@@ -8,7 +8,6 @@ import {
   AlertCircle,
   CheckCircle2,
   GraduationCap,
-  Bell,
   Users
 } from 'lucide-react';
 import { api } from '../services/api.js';
@@ -310,13 +309,6 @@ export const DepartmentsView: React.FC = () => {
               >
                 <Users size={14} style={{ display: 'inline', marginRight: '6px' }} />
                 Enrolled Students ({students.length})
-              </button>
-              <button
-                className={`tab-pill ${activeTab === 'notices' ? 'active' : ''}`}
-                onClick={() => setActiveTab('notices')}
-              >
-                <Bell size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Department Bulletins ({announcements.length})
               </button>
             </div>
 

@@ -1,3 +1,4 @@
+import { DayTemplateFields, type DayOptions } from './DayTemplateFields.js';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Clock,
@@ -5,7 +6,6 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Zap,
   CheckCircle2,
   AlertCircle,
   Copy,
@@ -49,8 +49,6 @@ export const TimetableTemplatesView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Daily Session Generator State
-  const [genDate, setGenDate] = useState(new Date().toISOString().slice(0, 10));
-  const [generating, setGenerating] = useState(false);
 
   // Add / Edit Slot Modal State
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
@@ -76,6 +74,7 @@ export const TimetableTemplatesView: React.FC = () => {
   ]);
 
   // Apply Template Modal State
+  const [dayOptions,setDayOptions] = useState<DayOptions>({sourceDay:1,daysOfWeek:[1]});
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [templateToApply, setTemplateToApply] = useState<TimetableTemplate | null>(null);
   const [applyTargetBatchId, setApplyTargetBatchId] = useState('');
@@ -231,21 +230,7 @@ export const TimetableTemplatesView: React.FC = () => {
   };
 
   // Handler: Generate Daily Sessions
-  const handleGenerateSessions = async () => {
-    setGenerating(true);
-    setFeedback(null);
-    try {
-      const res = await api.generateSessionsForDate(genDate);
-      setFeedback({
-        type: 'success',
-        message: `Successfully spawned ${res.sessionsGenerated} live attendance sessions for ${genDate}!`
-      });
-    } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to generate sessions.' });
-    } finally {
-      setGenerating(false);
-    }
-  };
+
 
   // Handler: Create Template
   const handleCreateTemplate = async (e: React.FormEvent) => {
@@ -301,7 +286,7 @@ export const TimetableTemplatesView: React.FC = () => {
     if (!templateToApply || !applyTargetBatchId) return;
     setFeedback(null);
     try {
-      const res = await api.applyTemplateToCohort(templateToApply.id, 'BATCH', applyTargetBatchId);
+      const res = await api.applyTemplateToCohort(templateToApply.id, 'BATCH', applyTargetBatchId, dayOptions);
       const targetBatch = batches.find((b) => b.id === applyTargetBatchId);
       setFeedback({
         type: 'success',
@@ -360,64 +345,6 @@ export const TimetableTemplatesView: React.FC = () => {
         </div>
       </div>
 
-      {/* Session Spawner Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(46, 125, 50, 0.08) 0%, var(--surface-container-low) 100%)',
-          border: '1px solid var(--outline)',
-          borderRadius: 'var(--radius-md)',
-          padding: '18px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--primary-soft)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary-container)'
-            }}
-          >
-            <Zap size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--on-surface)' }}>
-              Live Attendance Session Spawner
-            </div>
-            <div style={{ fontSize: '12.5px', color: 'var(--secondary)', marginTop: '2px' }}>
-              Spawns today's active batch attendance sessions directly onto student mobile apps.
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <input
-            type="date"
-            className="form-input"
-            style={{ width: 'auto', padding: '7px 12px', fontSize: '13px' }}
-            value={genDate}
-            onChange={(e) => setGenDate(e.target.value)}
-          />
-          <button
-            className="btn btn-primary"
-            onClick={handleGenerateSessions}
-            disabled={generating}
-            style={{ padding: '8px 16px', fontSize: '13px' }}
-          >
-            <Zap size={14} />
-            <span>{generating ? 'Spawning Sessions…' : 'Generate Daily Sessions'}</span>
-          </button>
-        </div>
-      </div>
 
       {/* Feedback Toast */}
       {feedback && (
@@ -1002,7 +929,7 @@ export const TimetableTemplatesView: React.FC = () => {
           onClose={() => setIsApplyModalOpen(false)}
           title={`Deploy Template: ${templateToApply.name}`}
         >
-          <form onSubmit={handleApplyTemplate}>
+          <form onSubmit={handleApplyTemplate}><DayTemplateFields value={dayOptions} onChange={setDayOptions}/>
             <div className="form-group">
               <label className="form-label">SELECT RECIPIENT BATCH</label>
               <select

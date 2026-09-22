@@ -32,6 +32,7 @@ export const DirectoryView: React.FC = () => {
 
   // Form Fields
   const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'STUDENT' | 'PROFESSOR'>('STUDENT');
@@ -66,6 +67,7 @@ export const DirectoryView: React.FC = () => {
     setTargetUserId(null);
     setFullName('');
     setEmail('');
+    setPhoneNumber('');
     setPassword('');
     setRole('STUDENT');
     setYearOfStudy(1);
@@ -78,7 +80,8 @@ export const DirectoryView: React.FC = () => {
     setIsEditing(true);
     setTargetUserId(user.id);
     setFullName(user.fullName || (user as any).full_name || '');
-    setEmail(user.email || '');
+    setEmail((user.email || '').split('@')[0]);
+    setPhoneNumber(user.phoneNumber || '');
     setRole(user.role === 'PROFESSOR' ? 'PROFESSOR' : 'STUDENT');
     setDepartmentId(user.departmentId || (user as any).department_id || (departments[0]?.id ?? ''));
     setYearOfStudy(user.yearOfStudy || (user as any).year_of_study || 1);
@@ -93,7 +96,8 @@ export const DirectoryView: React.FC = () => {
       if (isEditing && targetUserId) {
         await api.updateUser(targetUserId, {
           fullName,
-          email,
+          phoneNumber,
+          email: `${email.split("@")[0]}@kahedu.edu.in`,
           role,
           departmentId,
           yearOfStudy: role === 'STUDENT' ? yearOfStudy : undefined,
@@ -103,7 +107,8 @@ export const DirectoryView: React.FC = () => {
       } else {
         await api.createUser({
           fullName,
-          email,
+          phoneNumber,
+          email: `${email.split("@")[0]}@kahedu.edu.in`,
           password,
           role,
           departmentId,
@@ -278,7 +283,7 @@ export const DirectoryView: React.FC = () => {
           >
             <option value="name">Name (A-Z)</option>
             <option value="dept">Department</option>
-            <option value="year">Academic Year</option>
+            <option value="year">Year</option>
           </select>
         </div>
 
@@ -305,8 +310,8 @@ export const DirectoryView: React.FC = () => {
                 <th>Member Information</th>
                 <th>Role</th>
                 <th>Department</th>
-                <th>Academic Year</th>
-                <th>Enrollment ID</th>
+                <th>Year</th>
+                <th>Register number</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -429,17 +434,19 @@ export const DirectoryView: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">UNIVERSITY EMAIL ADDRESS</label>
+            <label className="form-label">UNIVERSITY EMAIL (@kahedu.edu.in)</label>
             <input
-              type="email"
+              type="text"
               className="form-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. alan.turing@university.edu"
+              placeholder="e.g. alan.turing"
+              pattern="[A-Za-z0-9._%+-]+"
               required
             />
           </div>
 
+          <div className="form-group"><label className="form-label">PHONE NUMBER</label><input type="tel" className="form-input" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} maxLength={32} /></div>
           {!isEditing && (
             <div className="form-group">
               <label className="form-label">INITIAL PASSWORD</label>
@@ -501,15 +508,15 @@ export const DirectoryView: React.FC = () => {
                   value={yearOfStudy}
                   onChange={(e) => setYearOfStudy(Number(e.target.value))}
                 >
-                  <option value={1}>Year 1 (Freshman)</option>
-                  <option value={2}>Year 2 (Sophomore)</option>
-                  <option value={3}>Year 3 (Junior)</option>
-                  <option value={4}>Year 4 (Senior)</option>
+                  <option value={1}>Year 1</option>
+                  <option value={2}>Year 2</option>
+                  <option value={3}>Year 3</option>
+                  <option value={4}>Year 4</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">ENROLLMENT ID</label>
+                <label className="form-label">REGISTER NUMBER</label>
                 <input
                   type="text"
                   className="form-input"
