@@ -8,7 +8,7 @@ export class UserController {
     const db = await getDb();
 
     let query = `
-      SELECT u.id, u.email, u.role,
+      SELECT u.id, u.email, u.role, u.phone_number AS "phoneNumber",
              u.full_name AS "fullName", u.full_name,
              u.enrollment_id AS "enrollmentId", u.enrollment_id,
              u.photo_url AS "photoUrl",
@@ -50,13 +50,16 @@ export class UserController {
   }
 
   static async create(req: Request, res: Response): Promise<void> {
-    const { email, password, role, fullName, enrollmentId, departmentId, yearOfStudy } = req.body;
+    const { email, password, role, fullName, enrollmentId, departmentId, yearOfStudy, phoneNumber } = req.body;
 
     if (!email || !password || !role || !fullName) {
       res.status(400).json({ error: 'MISSING_FIELDS', message: 'Email, password, role, and fullName are required.' });
       return;
     }
 
+    if (email && !/^[A-Za-z0-9._%+-]+@kahedu\.edu\.in$/.test(email.trim().toLowerCase())) {
+      res.status(400).json({ message: 'Use an @kahedu.edu.in email address.' }); return;
+    }
     const db = await getDb();
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (existing.rows.length > 0) {
@@ -68,8 +71,8 @@ export class UserController {
     const userId = `usr_${role.toLowerCase()}_${Date.now().toString(36)}`;
 
     await db.query(
-      `INSERT INTO users (id, email, password_hash, role, full_name, enrollment_id, department_id, year_of_study)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO users (id, email, password_hash, role, full_name, enrollment_id, department_id, year_of_study, phone_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         userId,
         email.toLowerCase().trim(),
@@ -78,12 +81,13 @@ export class UserController {
         fullName.trim(),
         enrollmentId?.trim() || null,
         departmentId || null,
-        yearOfStudy ? Number(yearOfStudy) : null
+        yearOfStudy ? Number(yearOfStudy) : null,
+        phoneNumber?.trim() || null
       ]
     );
 
     const created = await db.query(
-      `SELECT u.id, u.email, u.role, u.full_name AS "fullName", u.enrollment_id AS "enrollmentId",
+      `SELECT u.id, u.email, u.role, u.phone_number AS "phoneNumber", u.full_name AS "fullName", u.enrollment_id AS "enrollmentId",
               u.department_id AS "departmentId", u.year_of_study AS "yearOfStudy",
               d.code AS "departmentCode", d.name AS "departmentName"
        FROM users u
@@ -97,7 +101,10 @@ export class UserController {
 
   static async update(req: Request, res: Response): Promise<void> {
     const id = (Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) as string;
-    const { fullName, email, departmentId, yearOfStudy, role, enrollmentId } = req.body;
+    const { fullName, email, departmentId, yearOfStudy, role, enrollmentId, phoneNumber } = req.body;
+    if (email && !/^[A-Za-z0-9._%+-]+@kahedu\.edu\.in$/.test(email.trim().toLowerCase())) {
+      res.status(400).json({ message: 'Use an @kahedu.edu.in email address.' }); return;
+    }
     const db = await getDb();
 
     const existing = await db.query('SELECT id FROM users WHERE id = $1', [id]);
@@ -114,6 +121,7 @@ export class UserController {
            year_of_study = COALESCE($4, year_of_study),
            role = COALESCE($5, role),
            enrollment_id = COALESCE($6, enrollment_id),
+           phone_number = COALESCE($8, phone_number),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $7`,
       [
@@ -123,12 +131,13 @@ export class UserController {
         yearOfStudy ? Number(yearOfStudy) : null,
         role || null,
         enrollmentId || null,
-        id
+        id,
+        phoneNumber === undefined ? null : String(phoneNumber).trim()
       ]
     );
 
     const updated = await db.query(
-      `SELECT u.id, u.email, u.role, u.full_name AS "fullName", u.enrollment_id AS "enrollmentId",
+      `SELECT u.id, u.email, u.role, u.phone_number AS "phoneNumber", u.full_name AS "fullName", u.enrollment_id AS "enrollmentId",
               u.department_id AS "departmentId", u.year_of_study AS "yearOfStudy",
               d.code AS "departmentCode", d.name AS "departmentName"
        FROM users u

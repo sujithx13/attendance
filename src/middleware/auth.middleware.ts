@@ -26,6 +26,7 @@ export async function authenticateToken(
   try {
     const decoded = jwt.verify(token, ENV.JWT_SECRET) as UserTokenPayload;
     const db = await getDb();
+    if(decoded.sessionId) { const session=await db.query('SELECT id FROM mobile_sessions WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL',[decoded.sessionId,decoded.userId]); if(!session.rows.length) throw new Error('Session ended.'); }
     const current = await db.query('SELECT id, role, email, full_name FROM users WHERE id = $1', [decoded.userId]);
     if (!current.rows[0]) throw new Error('User no longer exists.');
     req.user = { ...decoded, role: current.rows[0].role, email: current.rows[0].email, fullName: current.rows[0].full_name };

@@ -1,3 +1,6 @@
+import { issueMobileSession, userBatches } from '../services/mobile-auth.service.js';
+import { randomUUID } from 'node:crypto';
+import { withTransaction } from '../database/db.js';
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -32,7 +35,10 @@ export class AuthController {
       return;
     }
 
+    const sessionId = user.role === UserRole.ADMIN ? undefined : await issueMobileSession(user.id);
+    if (sessionId === null) { res.status(403).json({ error: 'LOGIN_APPROVAL_REQUIRED', message: 'Login requested. Your batch administrator must approve access. Try signing in again after approval.' }); return; }
     const tokenPayload: UserTokenPayload = {
+      sessionId,
       userId: user.id,
       email: user.email,
       role: user.role as UserRole,
@@ -40,7 +46,7 @@ export class AuthController {
       enrollmentId: user.enrollment_id || undefined
     };
 
-    const token = jwt.sign(tokenPayload, ENV.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(tokenPayload, ENV.JWT_SECRET, user.role === UserRole.ADMIN ? { expiresIn: '7d' } : {});
 
     const response: AuthResponse = {
       token,
@@ -57,6 +63,15 @@ export class AuthController {
     res.status(200).json(response);
   }
 
+  static async logout(req: AuthenticatedRequest, res: Response): Promise<void> {
+    await withTransaction(async () => {
+      const db=await getDb();
+      if(req.user?.sessionId) await db.query('UPDATE mobile_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE id=$1 AND user_id=$2',[req.user.sessionId,req.user.userId]);
+      for(const batch of await userBatches(req.user!.userId)) await db.query('INSERT INTO batch_account_events(id,batch_id,user_id,event) VALUES($1,$2,$3,$4)',[randomUUID(),batch.id,req.user!.userId,'LOGOUT']);
+    });
+    res.json({ success:true });
+  }
+
   static async register(req: Request, res: Response): Promise<void> {
     const { email, password, role, fullName, enrollmentId, photoUrl, faceEmbedding } = req.body;
 
@@ -70,6 +85,7 @@ export class AuthController {
       return;
     }
 
+    if (role !== UserRole.ADMIN && !/^[A-Za-z0-9._%+-]+@kahedu\.edu\.in$/.test(String(email).trim().toLowerCase())) { res.status(400).json({message:'Use an @kahedu.edu.in email address.'}); return; }
     const db = await getDb();
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (existing.rows.length > 0) {
@@ -95,16 +111,7 @@ export class AuthController {
       ]
     );
 
-    const token = jwt.sign(
-      { userId, email, role, fullName, enrollmentId },
-      ENV.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      token,
-      user: { id: userId, email, role, fullName, enrollmentId, photoUrl }
-    });
+    res.status(201).json({ user: { id: userId, email, role, fullName, enrollmentId, photoUrl } });
   }
 
   static async me(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -115,7 +122,7 @@ export class AuthController {
 
     const db = await getDb();
     const userRes = await db.query(
-      `SELECT u.id, u.email, u.role,
+      `SELECT u.id, u.email, u.role, u.phone_number AS "phoneNumber",
               u.full_name AS "fullName", u.full_name,
               u.enrollment_id AS "enrollmentId", u.enrollment_id,
               u.photo_url AS "photoUrl",
@@ -144,48 +151,7 @@ export class AuthController {
       return;
     }
 
-    const { fullName, departmentId, yearOfStudy } = req.body;
-    const db = await getDb();
-
-    // If departmentId is supplied, verify it exists
-    if (departmentId) {
-      const deptCheck = await db.query('SELECT id FROM departments WHERE id = $1', [departmentId]);
-      if (deptCheck.rows.length === 0) {
-        res.status(404).json({ error: 'Department not found.' });
-        return;
-      }
-    }
-
-    if (yearOfStudy !== undefined && (yearOfStudy < 1 || yearOfStudy > 5)) {
-      res.status(400).json({ error: 'yearOfStudy must be an integer between 1 and 5.' });
-      return;
-    }
-
-    await db.query(
-      `UPDATE users
-       SET full_name = COALESCE($1, full_name),
-           department_id = COALESCE($2, department_id),
-           year_of_study = COALESCE($3, year_of_study),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4`,
-      [fullName || null, departmentId || null, yearOfStudy || null, req.user.userId]
-    );
-
-    const updated = await db.query(
-      `SELECT u.id, u.email, u.role,
-              u.full_name AS "fullName", u.full_name,
-              u.enrollment_id AS "enrollmentId", u.enrollment_id,
-              u.department_id AS "departmentId", u.department_id,
-              u.year_of_study AS "yearOfStudy", u.year_of_study,
-              d.code AS "departmentCode", d.code AS department_code,
-              d.name AS "departmentName", d.name AS department_name
-       FROM users u
-       LEFT JOIN departments d ON u.department_id = d.id
-       WHERE u.id = $1`,
-      [req.user.userId]
-    );
-
-    res.json({ message: 'Profile updated successfully.', user: updated.rows[0] });
+    res.status(403).json({ error: 'ADMIN_MANAGED_PROFILE', message: 'Your administrator manages account details.' });
   }
 
   static async updateFaceEmbedding(req: AuthenticatedRequest, res: Response): Promise<void> {
