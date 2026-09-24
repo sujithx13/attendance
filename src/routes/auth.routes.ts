@@ -8,6 +8,7 @@ const router = Router();
 
 router.post('/login', AuthController.login);
 router.post('/register', authenticateToken, requireRole(UserRole.ADMIN), AuthController.register);
+router.post('/logout', authenticateToken, AuthController.logout);
 router.get('/me', authenticateToken, AuthController.me);
 router.put('/profile', authenticateToken, AuthController.updateProfile);
 router.put('/face-embedding', authenticateToken, requireRole(UserRole.ADMIN), AuthController.updateFaceEmbedding);

@@ -1,3 +1,4 @@
+import { testBatchLogin } from './batch-login.test.js';
 import { runMigrations } from '../src/database/migrate.js';
 import { seedDatabase } from '../src/database/seed.js';
 import { testQrLayer } from './qr.test.js';
@@ -23,6 +24,7 @@ async function runAllTests(): Promise<void> {
     await seedDatabase();
 
     // 2. Run all individual test modules
+    await testBatchLogin();
     await testQrLayer();
     await testSpatialLayer();
     await testAntiSpoofingLayer();

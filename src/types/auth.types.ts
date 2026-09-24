@@ -2,6 +2,7 @@ import { UserRole } from '../config/constants.js';
 
 export interface UserTokenPayload {
   userId: string;
+  sessionId?: string;
   email: string;
   role: UserRole;
   fullName: string;

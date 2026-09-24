@@ -72,6 +72,7 @@ export class SessionSocketServer {
             const claims = jwt.verify(data.token, ENV.JWT_SECRET) as UserTokenPayload;
             const db = await getDb();
             const user = await db.query('SELECT role FROM users WHERE id = $1', [claims.userId]);
+            if(claims.sessionId && !(await db.query('SELECT id FROM mobile_sessions WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL',[claims.sessionId,claims.userId])).rows.length) throw new Error('Session ended.');
             if (!user.rows[0]) throw new Error('Account no longer exists.');
             const role = user.rows[0].role as UserRole;
             if (role === UserRole.STUDENT) throw new Error('Student accounts cannot subscribe to attendance streams.');
@@ -82,9 +83,11 @@ export class SessionSocketServer {
             clientSessionId = data.sessionId;
             currentConn = { ws, sessionId: data.sessionId, role } as ClientConnection;
             clearTimeout(authenticationTimeout);
+            if ((claims as any).exp) {
             const expiryMs = Math.max(0, ((claims as any).exp * 1000) - Date.now());
             currentConn.expiryId = setTimeout(() => ws.close(1008, 'Token expired'), Math.min(expiryMs, 2147483647));
             currentConn.expiryId.unref();
+            }
             if (!this.sessionClients.has(data.sessionId)) this.sessionClients.set(data.sessionId, new Set());
             this.sessionClients.get(data.sessionId)!.add(currentConn);
             ws.send(JSON.stringify({ type: 'SUBSCRIBED', sessionId: data.sessionId }));
@@ -96,6 +99,7 @@ export class SessionSocketServer {
               try {
                 jwt.verify(data.token, ENV.JWT_SECRET);
                 const activeDb = await getDb();
+                if(claims.sessionId && !(await activeDb.query('SELECT id FROM mobile_sessions WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL',[claims.sessionId,claims.userId])).rows.length) throw new Error('Session ended.');
                 const account = await activeDb.query('SELECT role FROM users WHERE id = $1', [claims.userId]);
                 if (account.rows[0]?.role !== role) throw new Error('Account access changed.');
                 if (!campus) {

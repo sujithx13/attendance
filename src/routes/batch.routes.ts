@@ -4,7 +4,12 @@ import { authenticateToken } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/rbac.middleware.js';
 import { UserRole } from '../config/constants.js';
 
+import { BatchAttendanceController } from '../controllers/batch-attendance.controller.js';
+
+import batchLoginRoutes from './batch-login.routes.js';
 const router = Router();
+router.use('/:id/login-access', batchLoginRoutes);
+router.get('/:id/attendance', authenticateToken, requireRole(UserRole.ADMIN), BatchAttendanceController.list);
 
 // List all batches (filtered by dept or prof)
 router.get('/', authenticateToken, BatchController.list);
