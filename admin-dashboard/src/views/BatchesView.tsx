@@ -38,7 +38,7 @@ function formatToAmPm(timeStr: string): string {
   return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
 }
 
-export const BatchesView: React.FC = () => {
+export const BatchesView: React.FC<{ batchWindowId?: string }> = ({ batchWindowId }) => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [professors, setProfessors] = useState<User[]>([]);
   const [allStudents, setAllStudents] = useState<User[]>([]);
@@ -79,7 +79,7 @@ export const BatchesView: React.FC = () => {
 
   // Selected Cohort Hub State
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'roster' | 'timetable' | 'notices'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'roster' | 'timetable' | 'notices' | 'attendance' | 'alerts'>('overview');
   const [members, setMembers] = useState<BatchMember[]>([]);
   const [batchFaculty, setBatchFaculty] = useState<any[]>([]);
   const [timetable, setTimetable] = useState<TimetableSlot[]>([]);
@@ -247,6 +247,11 @@ export const BatchesView: React.FC = () => {
   };
 
   const handleSelectCohort = async (batch: Batch) => {
+    if (!batchWindowId) {
+      const url = new URL(window.location.href); url.search = ''; url.searchParams.set('batch', batch.id);
+      window.open(url.toString(), '_blank', 'noopener,noreferrer,width=1240,height=860');
+      return;
+    }
     setSelectedBatch(batch);
     setActiveTab('overview');
     setFeedback(null);
@@ -265,6 +270,13 @@ export const BatchesView: React.FC = () => {
       console.error('Failed to load batch cohort details', err);
     }
   };
+
+  useEffect(() => {
+    if (batchWindowId && !selectedBatch) {
+      const batch = batches.find(b => b.id === batchWindowId);
+      if (batch) void handleSelectCohort(batch);
+    }
+  }, [batchWindowId, batches, selectedBatch]);
 
   // FACULTY ACTIONS
   const handleAddProfessor = async (e: React.FormEvent) => {
@@ -489,7 +501,7 @@ export const BatchesView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      <div style={{ display: selectedBatch ? 'none' : 'contents' }}>
+      <div style={{ display: selectedBatch || batchWindowId ? 'none' : 'contents' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -650,7 +662,7 @@ export const BatchesView: React.FC = () => {
                     }}
                   >
                     <BookOpen size={14} />
-                    <span>Open Cohort Hub</span>
+                    <span>Open batch dashboard ↗</span>
                   </button>
                   <button
                     className="btn btn-secondary"
@@ -682,53 +694,16 @@ export const BatchesView: React.FC = () => {
       </div>
 
       </div>
+      {batchWindowId && !selectedBatch && <div className="card"><h2>Opening batch dashboard…</h2>{feedback && <p role="alert">{feedback.message}</p>}<a href={window.location.pathname}>Back to admin</a></div>}
       {/* Cohort Detail Hub Modal */}
       {selectedBatch && (
-        <section className="batch-detail-page">{feedback && <p role="status">{feedback.message}</p>}<button className="btn btn-secondary" onClick={() => setSelectedBatch(null)}>Back to batches</button><h2>{selectedBatch.name} ({selectedBatch.code})</h2><BatchAttendance batchId={selectedBatch.id} /><BatchLoginAccess batchId={selectedBatch.id} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Header Banner */}
-            <div
-              style={{
-                backgroundColor: 'var(--surface-container-low)',
-                border: '1px solid var(--outline)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '20px 24px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between'
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span className="badge badge-purple" style={{ fontSize: '13px' }}>{selectedBatch.code}</span>
-                  {selectedBatch.allowCrossDepartment ? (
-                    <span className="badge badge-emerald">Cross-Departmental</span>
-                  ) : (
-                    <span className="badge badge-blue">Single Department</span>
-                  )}
-                  <span className="badge badge-amber">
-                    Years [{(selectedBatch.allowedYears || (selectedBatch as any).allowed_years)?.join(', ')}]
-                  </span>
-                  <span className="badge badge-blue">
-                    {batchFaculty.length} Faculty Assigned
-                  </span>
-                </div>
-                <h3 style={{ fontSize: '20px', fontWeight: 800 }}>{selectedBatch.name}</h3>
-                <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
-                  {selectedBatch.description || 'Academic batch cohort.'}
-                </p>
-              </div>
-
-              <button
-                className="btn btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                onClick={() => handleOpenEdit(selectedBatch)}
-              >
-                <Edit2 size={12} />
-                <span>Edit Batch</span>
-              </button>
-            </div>
-
+        <section className="batch-detail-page batch-dashboard">
+          <header className="batch-dashboard-header">
+            <div><span className="batch-eyebrow">BATCH DASHBOARD · {selectedBatch.code}</span><h1>{selectedBatch.name}</h1></div>
+            <div className="batch-header-actions"><button className="btn btn-secondary" onClick={() => handleOpenEdit(selectedBatch)}><Edit2 size={14} /> Edit batch</button><button className="btn btn-secondary" onClick={() => { window.close(); }}>Close window</button></div>
+          </header>
+          {feedback && <p className="batch-feedback" role="status">{feedback.message}</p>}
+          <div className="batch-dashboard-content">
             {/* Hub Navigation Tabs */}
             <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--outline)', paddingBottom: '10px', flexWrap: 'wrap' }}>
               <button
@@ -736,34 +711,47 @@ export const BatchesView: React.FC = () => {
                 onClick={() => setActiveTab('overview')}
               >
                 <ShieldCheck size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Policy & Rules
+                Overview
               </button>
               <button
                 className={`tab-pill ${activeTab === 'staff' ? 'active' : ''}`}
                 onClick={() => setActiveTab('staff')}
               >
                 <GraduationCap size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Faculty Leadership ({batchFaculty.length})
+                Faculty ({batchFaculty.length})
               </button>
               <button
                 className={`tab-pill ${activeTab === 'roster' ? 'active' : ''}`}
                 onClick={() => setActiveTab('roster')}
               >
                 <Users size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Student Roster ({members.length})
+                Students ({members.length})
               </button>
               <button
                 className={`tab-pill ${activeTab === 'timetable' ? 'active' : ''}`}
                 onClick={() => setActiveTab('timetable')}
               >
                 <Calendar size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Cohort Timetable ({timetable.length})
+                Timetable
               </button>
+              <button className={`tab-pill ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>Attendance</button>
+              <button className={`tab-pill ${activeTab === 'alerts' ? 'active' : ''}`} onClick={() => setActiveTab('alerts')}>Alerts & login access</button>
             </div>
 
+            <div hidden={activeTab !== 'attendance'}><BatchAttendance batchId={selectedBatch.id} /></div>
+            <div hidden={activeTab !== 'alerts'}><BatchLoginAccess batchId={selectedBatch.id} /></div>
             {/* TAB 1: OVERVIEW */}
             {activeTab === 'overview' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="batch-stat-grid">
+                  <button className="batch-stat" onClick={() => setActiveTab('roster')}><span>Students</span><strong>{members.length}</strong><small>View roster →</small></button>
+                  <button className="batch-stat" onClick={() => setActiveTab('staff')}><span>Faculty</span><strong>{batchFaculty.length}</strong><small>Manage faculty →</small></button>
+                  <button className="batch-stat" onClick={() => setActiveTab('timetable')}><span>Timetable slots</span><strong>{timetable.length}</strong><small>Open timetable →</small></button>
+                </div>
+                <div className="batch-quick-actions"><button className="btn btn-primary" onClick={() => setActiveTab('attendance')}>View daily attendance</button><button className="btn btn-secondary" onClick={() => setActiveTab('alerts')}>View alerts & login requests</button></div>
+                {selectedBatch.description && <p className="batch-description">{selectedBatch.description}</p>}
+
+<details className="batch-rules"><summary>Batch rules</summary>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="card" style={{ padding: '18px' }}>
                     <h5 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>Department Admission Scope</h5>
@@ -783,6 +771,7 @@ export const BatchesView: React.FC = () => {
                     </p>
                   </div>
                 </div>
+</details>
               </div>
             )}
 

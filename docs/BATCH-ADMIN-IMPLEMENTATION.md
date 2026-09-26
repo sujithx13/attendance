@@ -15,3 +15,7 @@ Implemented in this change:
 Migrations 013–015 add phone numbers, mobile sessions, login gate/requests/account events, and timetable subject names. Back up PGlite while its API owner is stopped before upgrade. The local database was backed up and migrated without reseeding.
 
 Verification: root TypeScript compilation and isolated backend suite; new regressions for approval consumption, allow-all, logout revocation/events, locked profile, daily report, day-template copies and atomic conflict rollback; admin build; 30 mobile tests and mobile TypeScript check; Excel workbook round-trip preserving leading zeros. Native device lifecycle, camera and OS storage behavior require physical device acceptance testing.
+
+## Batch window UI
+
+Opening a batch launches a separate dashboard window (or tab, depending on browser settings) using its batch ID in the URL. The compact overview links to Students, Faculty and Timetable. Daily attendance and batch alerts/login access have dedicated tabs inside that window. All existing controls and API behavior are retained; policy details are collapsed under Batch rules.

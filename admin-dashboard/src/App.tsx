@@ -50,6 +50,9 @@ const DashboardContent: React.FC = () => {
     return <LoginView />;
   }
 
+  const batchWindowId = new URLSearchParams(window.location.search).get('batch');
+  if (batchWindowId) return <main className="batch-window-shell"><BatchesView batchWindowId={batchWindowId} /></main>;
+
   const titles: Record<NavView, string> = {
     dashboard: 'Campus overview',
     directory: 'Students & faculty',
