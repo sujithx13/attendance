@@ -1,3 +1,4 @@
+import { BatchWorkspace } from './views/BatchWorkspace.js';
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.js';
 import { Sidebar, type NavView } from './components/layout/Sidebar.js';
@@ -51,7 +52,7 @@ const DashboardContent: React.FC = () => {
   }
 
   const batchWindowId = new URLSearchParams(window.location.search).get('batch');
-  if (batchWindowId) return <main className="batch-window-shell"><BatchesView batchWindowId={batchWindowId} /></main>;
+  if (batchWindowId) return <BatchWorkspace batchId={batchWindowId} />;
 
   const titles: Record<NavView, string> = {
     dashboard: 'Campus overview',

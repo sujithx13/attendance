@@ -36,7 +36,7 @@ function formatToAmPm(timeStr: string): string {
   return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
 }
 
-export const TimetableTemplatesView: React.FC = () => {
+export const TimetableTemplatesView: React.FC<{ initialBatchId?: string }> = ({ initialBatchId }) => {
   const [viewMode, setViewMode] = useState<'MATRIX' | 'BATCH_EXPLORER' | 'TEMPLATES'>('MATRIX');
   const [slots, setSlots] = useState<TimetableSlot[]>([]);
   const [templates, setTemplates] = useState<TimetableTemplate[]>([]);
@@ -45,7 +45,7 @@ export const TimetableTemplatesView: React.FC = () => {
   const [classrooms, setClassrooms] = useState<any[]>([]);
 
   // Filtering
-  const [selectedBatchFilter, setSelectedBatchFilter] = useState<string>('ALL');
+  const [selectedBatchFilter, setSelectedBatchFilter] = useState<string>(initialBatchId || 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Daily Session Generator State

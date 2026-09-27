@@ -14,9 +14,7 @@ import {
   CheckCircle2,
   Search,
   BookOpen,
-  GraduationCap,
   Calendar,
-  ShieldCheck,
   MapPin,
   Copy,
   CalendarPlus
@@ -38,7 +36,8 @@ function formatToAmPm(timeStr: string): string {
   return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
 }
 
-export const BatchesView: React.FC<{ batchWindowId?: string }> = ({ batchWindowId }) => {
+export type BatchSection = 'overview' | 'staff' | 'roster' | 'timetable' | 'notices' | 'attendance' | 'alerts';
+export const BatchesView: React.FC<{ batchWindowId?: string; section?: BatchSection; onSectionChange?: (section: BatchSection) => void }> = ({ batchWindowId, section, onSectionChange }) => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [professors, setProfessors] = useState<User[]>([]);
   const [allStudents, setAllStudents] = useState<User[]>([]);
@@ -79,7 +78,9 @@ export const BatchesView: React.FC<{ batchWindowId?: string }> = ({ batchWindowI
 
   // Selected Cohort Hub State
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'roster' | 'timetable' | 'notices' | 'attendance' | 'alerts'>('overview');
+  const [localTab, setLocalTab] = useState<BatchSection>('overview');
+  const activeTab = section ?? localTab;
+  const setActiveTab = onSectionChange ?? setLocalTab;
   const [members, setMembers] = useState<BatchMember[]>([]);
   const [batchFaculty, setBatchFaculty] = useState<any[]>([]);
   const [timetable, setTimetable] = useState<TimetableSlot[]>([]);
@@ -700,44 +701,10 @@ export const BatchesView: React.FC<{ batchWindowId?: string }> = ({ batchWindowI
         <section className="batch-detail-page batch-dashboard">
           <header className="batch-dashboard-header">
             <div><span className="batch-eyebrow">BATCH DASHBOARD · {selectedBatch.code}</span><h1>{selectedBatch.name}</h1></div>
-            <div className="batch-header-actions"><button className="btn btn-secondary" onClick={() => handleOpenEdit(selectedBatch)}><Edit2 size={14} /> Edit batch</button><button className="btn btn-secondary" onClick={() => { window.close(); }}>Close window</button></div>
+            <div className="batch-header-actions"><button className="btn btn-secondary" onClick={() => handleOpenEdit(selectedBatch)}><Edit2 size={14} /> Edit batch</button></div>
           </header>
           {feedback && <p className="batch-feedback" role="status">{feedback.message}</p>}
           <div className="batch-dashboard-content">
-            {/* Hub Navigation Tabs */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--outline)', paddingBottom: '10px', flexWrap: 'wrap' }}>
-              <button
-                className={`tab-pill ${activeTab === 'overview' ? 'active' : ''}`}
-                onClick={() => setActiveTab('overview')}
-              >
-                <ShieldCheck size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Overview
-              </button>
-              <button
-                className={`tab-pill ${activeTab === 'staff' ? 'active' : ''}`}
-                onClick={() => setActiveTab('staff')}
-              >
-                <GraduationCap size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Faculty ({batchFaculty.length})
-              </button>
-              <button
-                className={`tab-pill ${activeTab === 'roster' ? 'active' : ''}`}
-                onClick={() => setActiveTab('roster')}
-              >
-                <Users size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Students ({members.length})
-              </button>
-              <button
-                className={`tab-pill ${activeTab === 'timetable' ? 'active' : ''}`}
-                onClick={() => setActiveTab('timetable')}
-              >
-                <Calendar size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Timetable
-              </button>
-              <button className={`tab-pill ${activeTab === 'attendance' ? 'active' : ''}`} onClick={() => setActiveTab('attendance')}>Attendance</button>
-              <button className={`tab-pill ${activeTab === 'alerts' ? 'active' : ''}`} onClick={() => setActiveTab('alerts')}>Alerts & login access</button>
-            </div>
-
             <div hidden={activeTab !== 'attendance'}><BatchAttendance batchId={selectedBatch.id} /></div>
             <div hidden={activeTab !== 'alerts'}><BatchLoginAccess batchId={selectedBatch.id} /></div>
             {/* TAB 1: OVERVIEW */}

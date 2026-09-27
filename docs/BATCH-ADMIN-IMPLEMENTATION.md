@@ -18,4 +18,4 @@ Verification: root TypeScript compilation and isolated backend suite; new regres
 
 ## Batch window UI
 
-Opening a batch launches a separate dashboard window (or tab, depending on browser settings) using its batch ID in the URL. The compact overview links to Students, Faculty and Timetable. Daily attendance and batch alerts/login access have dedicated tabs inside that window. All existing controls and API behavior are retained; policy details are collapsed under Batch rules.
+Opening a batch launches a separate dashboard window (or tab, depending on browser settings) using its batch ID in the URL. The window reuses the main administration sidebar, topbar, spacing and visual tokens. Its sidebar provides Batch overview, Students, Faculty, Batch timetable, Daily attendance, Alerts & login access, General timetable and Batches. General timetable includes the existing timetable/template page, initially filtered to the selected batch. All existing controls and API behavior are retained; policy details are collapsed under Batch rules.

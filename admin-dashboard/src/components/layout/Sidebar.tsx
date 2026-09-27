@@ -23,9 +23,10 @@ interface SidebarProps {
   currentView: NavView;
   onNavigate: (view: NavView) => void;
   open?: boolean;
+  navigation?: React.ReactNode;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open, navigation }) => {
   const { logout } = useAuth();
 
   return (
@@ -51,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open 
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
+        {navigation ?? <>
         <div className="nav-section-title">WORKSPACE</div>
 
         <button
@@ -122,6 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open 
           </div>
           {currentView === 'monitor' && <ChevronRight size={14} />}
         </button>
+        </>}
       </nav>
 
       <div className="sidebar-footer">
