@@ -204,17 +204,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <ArrowRight size={14} color="var(--secondary)" />
             </button>
 
-            <button
-              className="btn btn-secondary"
-              style={{ justifyContent: 'space-between', padding: '12px 16px' }}
-              onClick={() => onNavigate('templates')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <CalendarCheck size={16} color="var(--warning)" />
-                <span style={{ fontWeight: 600 }}>Manage timetables</span>
-              </div>
-              <ArrowRight size={14} color="var(--secondary)" />
-            </button>
+
 
             <button
               className="btn btn-secondary"

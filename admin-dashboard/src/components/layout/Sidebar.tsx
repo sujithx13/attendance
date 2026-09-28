@@ -4,7 +4,6 @@ import {
   Users2,
   Users,
   Building2,
-  CalendarDays,
   Activity,
   LogOut,
   ChevronRight
@@ -16,7 +15,6 @@ export type NavView =
   | 'directory'
   | 'batches'
   | 'departments'
-  | 'templates'
   | 'monitor';
 
 interface SidebarProps {
@@ -103,16 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open,
 
         <div className="nav-section-title">ATTENDANCE</div>
 
-        <button
-          className={`nav-item ${currentView === 'templates' ? 'active' : ''}`}
-          onClick={() => onNavigate('templates')}
-        >
-          <div className="nav-item-content">
-            <CalendarDays size={17} />
-            <span>Timetable</span>
-          </div>
-          {currentView === 'templates' && <ChevronRight size={14} />}
-        </button>
+
 
         <button
           className={`nav-item ${currentView === 'monitor' ? 'active' : ''}`}

@@ -8,7 +8,6 @@ import { DashboardOverview } from './views/DashboardOverview.js';
 import { DirectoryView } from './views/DirectoryView.js';
 import { BatchesView } from './views/BatchesView.js';
 import { DepartmentsView } from './views/DepartmentsView.js';
-import { TimetableTemplatesView } from './views/TimetableTemplatesView.js';
 import { LiveMonitorView } from './views/LiveMonitorView.js';
 import { ShieldCheck } from 'lucide-react';
 
@@ -59,7 +58,6 @@ const DashboardContent: React.FC = () => {
     directory: 'Students & faculty',
     batches: 'Batches',
     departments: 'Departments',
-    templates: 'Timetable',
     monitor: 'Live attendance'
   };
 
@@ -74,7 +72,6 @@ const DashboardContent: React.FC = () => {
           {currentView === 'directory' && <DirectoryView />}
           {currentView === 'batches' && <BatchesView />}
           {currentView === 'departments' && <DepartmentsView />}
-          {currentView === 'templates' && <TimetableTemplatesView />}
           {currentView === 'monitor' && <LiveMonitorView />}
         </main>
       </div>

@@ -87,7 +87,7 @@ export const TimetableTemplatesView: React.FC<{ initialBatchId?: string }> = ({ 
   const fetchAllData = async () => {
     try {
       const [slotsRes, tmplRes, batchRes, profRes, roomRes] = await Promise.all([
-        api.getTimetableSlots(),
+        api.getTimetableSlots(initialBatchId ? { batchId: initialBatchId } : undefined),
         api.getTemplates(),
         api.getBatches(),
         api.getUsers({ role: 'PROFESSOR' }),
@@ -96,13 +96,14 @@ export const TimetableTemplatesView: React.FC<{ initialBatchId?: string }> = ({ 
 
       setSlots(slotsRes.slots || []);
       setTemplates(tmplRes.templates || []);
-      setBatches(batchRes.batches || []);
+      const availableBatches = initialBatchId ? (batchRes.batches || []).filter(b => b.id === initialBatchId) : (batchRes.batches || []);
+      setBatches(availableBatches);
       setProfessors(profRes.users || []);
       setClassrooms(roomRes.classrooms || []);
 
-      if (batchRes.batches?.length > 0 && !slotBatchId) {
-        setSlotBatchId(batchRes.batches[0].id);
-        setApplyTargetBatchId(batchRes.batches[0].id);
+      if (availableBatches.length > 0 && !slotBatchId) {
+        setSlotBatchId(availableBatches[0].id);
+        setApplyTargetBatchId(availableBatches[0].id);
       }
       if (profRes.users?.length > 0 && !slotProfId) {
         setSlotProfId(profRes.users[0].id);
@@ -320,7 +321,7 @@ export const TimetableTemplatesView: React.FC<{ initialBatchId?: string }> = ({ 
       {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>Master Timetable & Scheduling Hub</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>{initialBatchId ? (batches[0]?.name || 'Batch') + ' · Timetable' : 'Timetable & templates'}</h2>
           <p style={{ fontSize: '14px', color: 'var(--secondary)', marginTop: '4px' }}>
             Intuitive weekly scheduling matrix, editable batch timetables (AM/PM), and automated session spawner.
           </p>
@@ -374,9 +375,10 @@ export const TimetableTemplatesView: React.FC<{ initialBatchId?: string }> = ({ 
             onClick={() => setViewMode('MATRIX')}
           >
             <CalendarDays size={14} style={{ display: 'inline', marginRight: '6px' }} />
-            Weekly Calendar Matrix
+            Weekly schedule
           </button>
 
+          {!initialBatchId && (
           <button
             className={`tab-pill ${viewMode === 'BATCH_EXPLORER' ? 'active' : ''}`}
             onClick={() => setViewMode('BATCH_EXPLORER')}
@@ -384,18 +386,20 @@ export const TimetableTemplatesView: React.FC<{ initialBatchId?: string }> = ({ 
             <Layers size={14} style={{ display: 'inline', marginRight: '6px' }} />
             Batch Timetable Explorer
           </button>
+          )}
 
           <button
             className={`tab-pill ${viewMode === 'TEMPLATES' ? 'active' : ''}`}
             onClick={() => setViewMode('TEMPLATES')}
           >
             <Copy size={14} style={{ display: 'inline', marginRight: '6px' }} />
-            Schedule Templates ({templates.length})
+            Day templates ({templates.length})
           </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {!initialBatchId && (
+<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="form-label" style={{ marginBottom: 0, fontSize: '11.5px' }}>FILTER BATCH:</span>
             <select
               className="form-select"
@@ -411,6 +415,7 @@ export const TimetableTemplatesView: React.FC<{ initialBatchId?: string }> = ({ 
               ))}
             </select>
           </div>
+          )}
 
           <div style={{ position: 'relative', minWidth: '200px' }}>
             <Search size={14} color="var(--secondary)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
