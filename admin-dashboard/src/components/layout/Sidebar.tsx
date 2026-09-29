@@ -4,7 +4,6 @@ import {
   Users2,
   Users,
   Building2,
-  Activity,
   LogOut,
   ChevronRight
 } from 'lucide-react';
@@ -99,20 +98,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, open,
           {currentView === 'departments' && <ChevronRight size={14} />}
         </button>
 
-        <div className="nav-section-title">ATTENDANCE</div>
-
-
-
-        <button
-          className={`nav-item ${currentView === 'monitor' ? 'active' : ''}`}
-          onClick={() => onNavigate('batches')}
-        >
-          <div className="nav-item-content">
-            <Activity size={17} />
-            <span>Batch attendance & alerts</span>
-          </div>
-          {currentView === 'monitor' && <ChevronRight size={14} />}
-        </button>
         </>}
       </nav>
 
