@@ -2,7 +2,7 @@
   "expo": {
     "name": "KAHE Attendance",
     "slug": "kahe-mobile",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -29,7 +29,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "edu.kahe.attendance",
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"

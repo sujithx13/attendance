@@ -1,0 +1,59 @@
+name: Android preview APK
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Reachable HTTPS API base ending in /api/v1
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NODE_ENV: production
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+      npm_config_script_shell: /bin/bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: KAHE-mobile-attendance-frontend-api/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install mobile dependencies
+        working-directory: KAHE-mobile-attendance-frontend-api
+        run: npm ci --include=dev
+      - name: Generate Android project
+        working-directory: KAHE-mobile-attendance-frontend-api
+        run: node node_modules/expo/bin/cli prebuild --platform android --no-install
+      - name: Install Android tools
+        run: |
+          python3 -c 'print("y\n" * 100)' > /tmp/android-licenses.txt
+          sdkmanager --licenses < /tmp/android-licenses.txt > /dev/null
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Compile preview APK
+        working-directory: KAHE-mobile-attendance-frontend-api/android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon --console=plain --max-workers=2 -Dorg.gradle.jvmargs='-Xmx4g -XX:MaxMetaspaceSize=1g' -PreactNativeArchitectures=arm64-v8a
+      - name: Verify APK
+        working-directory: KAHE-mobile-attendance-frontend-api/android
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging app/build/outputs/apk/release/app-release.apk
+          grep -aFq "$EXPO_PUBLIC_API_URL" app/build/generated/assets/react/release/index.android.bundle
+          sha256sum app/build/outputs/apk/release/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kahe-attendance-preview
+          path: KAHE-mobile-attendance-frontend-api/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
