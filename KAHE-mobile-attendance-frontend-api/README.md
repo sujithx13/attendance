@@ -33,4 +33,4 @@ npm.cmd test
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
-The npm package version is independent of Android's application version; release identity is in `app.json`. Current Android preview is 1.0.2 / code 3. Generated native projects and APKs are not tracked. See the Android guide for reproducible local builds, the Windows CMake path workaround and signing requirements.
+The npm package version is independent of Android's application version; release identity is in `app.json`. Current Android preview is 1.0.3 / code 4. Generated native projects and APKs are not tracked. See the Android guide for reproducible local builds, the Windows CMake path workaround and signing requirements.

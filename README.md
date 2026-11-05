@@ -4,7 +4,9 @@ A college attendance system with a TypeScript API, a React administration dashbo
 
 Students open a scheduled session, scan its classroom QR, and see their saved attendance status. Faculty can also scan a student's personal pass. Sessions open automatically at their scheduled time. Teachers can confirm an out-of-time QR display or scan; GPS checks are currently disabled.
 
-**Current state:** working development/phone-testing implementation; Android preview version **1.0.2**, version code **3**. This repository includes source, migrations and tests. Local databases, secrets, generated Android projects and APKs are intentionally excluded. A Cloudflare tunnel exposes a running API; the backend is not a Cloudflare Worker, and the admin dashboard is a client of the backend.
+**Current state:** working development/phone-testing implementation; Android preview version **1.0.3**, version code **4**. This repository includes source, migrations and tests. Local databases, secrets, generated Android projects and APKs are intentionally excluded. A Cloudflare tunnel exposes a running API; the backend is not a Cloudflare Worker, and the admin dashboard is a client of the backend.
+
+Latest APK build and checks: [Android preview 1.0.3](docs/ANDROID-PREVIEW-1.0.3.md).
 
 See [Batch administration and mobile accounts](docs/BATCH-ADMIN-IMPLEMENTATION.md) for batch attendance exports, day templates, persistent sign-in, and batch login approvals.
 
