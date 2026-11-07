@@ -51,3 +51,7 @@ Open the deployed site on a phone to use the web app. Camera access requires HTT
 The backend must remain online with a valid HTTPS certificate and allow the deployed site's origin through CORS. The current backend permits cross-origin requests; if you later restrict it, include the production and intended preview origins. A previously saved Server connection address takes precedence over the bundled default: update that field at sign-in if this browser used an older backend.
 
 Deployment checks: load the sign-in screen, confirm requests use the VPS /api/v1 endpoint, test student/faculty login with real accounts, refresh the page, and check camera permission on the actual phone. The administrator dashboard is a separate frontend.
+
+## University branding
+
+The supplied university artwork is stored in assets/university-logo.png and appears on the mobile and web sign-in screen. The app icon, Android adaptive foreground, and web favicon use proportionally scaled versions of the same artwork. White or transparent padding accommodates icon masks without stretching the logo. The admin dashboard uses the same supplied logo and a matching favicon. Native launcher icon changes require a new Android build; a Vercel redeployment updates the web branding.
