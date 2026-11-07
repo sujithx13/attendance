@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm --script-shell=/bin/sh ci",
+  "buildCommand": "npm --script-shell=/bin/sh run build:web",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/:path*", "destination": "/index.html" }
+  ]
+}
