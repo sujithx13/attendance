@@ -615,17 +615,7 @@ export const styles = StyleSheet.create({
   // Login Specific
   loginContainer: { width: '100%', maxWidth: 480, alignSelf: 'center', flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingTop: 36, paddingBottom: 40 },
   loginHeader: { alignItems: "center", marginBottom: 24 },
-  crestCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: colors.primaryBorder
-  },
+  universityLogo: { width: 176, height: 172, marginBottom: 16 },
   universityKicker: { fontSize: 10, fontWeight: "700", color: colors.primary, letterSpacing: 1, textAlign: 'center' },
   loginMainTitle: { fontSize: 28, fontWeight: "700", color: colors.text, marginTop: 12, textAlign: "center", lineHeight: 34 },
   loginSubtitle: { fontSize: 14, color: colors.textMuted, textAlign: "center", marginTop: 8, lineHeight: 21 },

@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from "react";
 import { login, getApiBaseUrl, setCustomApiBaseUrl, type AuthSession } from "../lib/api";
@@ -52,9 +52,7 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (auth: AuthS
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="none" contentContainerStyle={styles.loginContainer} showsVerticalScrollIndicator={false}>
         {/* University Crest Header */}
         <View style={styles.loginHeader}>
-          <View style={styles.crestCircle}>
-            <MaterialCommunityIcons name={iconName("school")} size={32} color={colors.primary} />
-          </View>
+          <Image source={require("../assets/university-logo.png")} style={styles.universityLogo} resizeMode="contain" accessibilityLabel="Karpagam Academy of Higher Education logo" />
           <Text style={styles.universityKicker}>KARPAGAM ACADEMY OF HIGHER EDUCATION</Text>
           <Text style={styles.loginMainTitle}>Campus attendance</Text>
           <Text style={styles.loginSubtitle}>
