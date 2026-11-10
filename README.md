@@ -37,6 +37,7 @@ For implementation details and future AI-agent guidance, see the [latest handoff
 | Administration dashboard | `admin-dashboard/` | `http://localhost:5173` |
 | Expo mobile web preview | `KAHE-mobile-attendance-frontend-api/` | Use port `8081` explicitly |
 | Classroom display | `public/display/`, served by API | `http://localhost:4000/display/` |
+| Temporary student registration | `public/register/`, served by API | `http://localhost:4000/register/` |
 | Database | PGlite by default; external PostgreSQL optional | `data/attendance.db/` or `DATABASE_URL` |
 
 ```mermaid
@@ -53,7 +54,7 @@ flowchart LR
 Use **Node.js 22.13 or later** with npm. Node 22 LTS is a reasonable baseline for this Expo 57 repository. The three directories have independent lockfiles; install dependencies in each. No npm workspace is configured.
 
 ```powershell
-git clone https://github.com/PradFr/attendance.git
+git clone https://github.com/sujithx13/attendance.git
 cd attendance
 npm.cmd ci
 Copy-Item .env.example .env
@@ -96,7 +97,15 @@ After seeding a disposable database, these accounts use `password123`:
 | Student | `student.john@university.edu` |
 | Student | `student.emily@university.edu` |
 
-Use the admin dashboard for administration and the mobile app for student/faculty flows. Account creation is admin-authenticated. Production requires real accounts and unique secrets; a seeded demo database is not a production installation.
+Use the admin dashboard for administration and the mobile app for student/faculty flows. Account creation is admin-authenticated (`POST /api/v1/auth/register` or `POST /api/v1/users`), while faculty/staff and admins can register student-only accounts via `POST /api/v1/auth/staff-register-student`. Production requires real accounts and unique secrets; a seeded demo database is not a production installation.
+
+## Temporary student registration (`/register/`)
+
+- Public student self-registration at `/register/` is **closed by default** (stored in `app_settings` via migration `016`).
+- Administrators can toggle it **Open** or **Closed** live from **Admin Dashboard → Directory** (`Temporary student registration link`) without restarting the server.
+- Students submit full name, register number, `@kahedu.edu.in` email, department, year (`1–5`), and optional batch; their sign-in password is automatically set to their **register number in UPPERCASE** (for example, `25becse234@kahedu.edu.in` with password `25BECSE234`).
+- Once onboarding finishes, turn the toggle off so only staff/admins can register new students.
+- Note for standalone Android builds: the mobile login screen does not expose a runtime server-URL override, so set `EXPO_PUBLIC_API_URL` to your reachable VPS/backend URL at build time.
 
 ## Attendance workflow
 
@@ -121,13 +130,13 @@ npm.cmd test
 node node_modules/typescript/bin/tsc --noEmit
 ```
 
-The backend suite exercises real HTTP and WebSocket authorization as well as policy, replay protection, rollback, classroom pairing, professor location, personal passes and saved status. The mobile suite currently has 28 tests. Database regressions run on PGlite; an external PostgreSQL deployment and real Android devices need their own acceptance checks.
+The backend suite exercises real HTTP and WebSocket authorization as well as policy, replay protection, rollback, classroom pairing, temporary student registration, staff student creation, personal passes and saved status. The mobile suite currently has 30 tests across 5 files. Database regressions run on PGlite; an external PostgreSQL deployment and real Android devices need their own acceptance checks.
 
 ## Internet access and hosting
 
-A standalone APK bundles its own interface. It needs a reachable HTTPS API, not Expo Go or Metro. For a short test, run the API and `cloudflared tunnel --url http://127.0.0.1:4000`. Configure the printed address in the app's **Server connection** field or at build time. Keep the computer and both processes online.
+A standalone APK bundles its own interface. It needs a reachable HTTPS API, not Expo Go or Metro. Set `EXPO_PUBLIC_API_URL` to your API address at build time (for a short local test, run the API and `cloudflared tunnel --url http://127.0.0.1:4000`, then bake the printed URL into the build).
 
-For ongoing use, deploy the Node API with persistent storage or external PostgreSQL, HTTPS and WebSocket support. Serve the built admin dashboard with `/api/v1` and `/ws` routed to the API. See [deployment instructions](docs/DEPLOYMENT.md). No permanent cloud deployment or stable domain is included in this repository.
+For ongoing use, deploy the Node API with persistent storage or external PostgreSQL, HTTPS and WebSocket support. Serve the built admin dashboard with `/api/v1`, `/register`, `/display` and `/ws` routed to the API. See [deployment instructions](docs/DEPLOYMENT.md). No permanent cloud deployment or stable domain is included in this repository.
 
 ## Current limits
 
