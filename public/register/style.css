@@ -1,0 +1,195 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #0f172a;
+  background: #f4f7f4;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 4px solid #0d631b;
+  border-bottom: 1px solid #dfe8df;
+  background: #ffffff;
+}
+.brand { font-size: 20px; letter-spacing: -0.03em; }
+.brand strong { color: #0d631b; }
+.header-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0d631b;
+  background: #ecf7ee;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+[hidden] { display: none !important; }
+.card {
+  width: 100%;
+  max-width: 560px;
+  background: #ffffff;
+  border: 1px solid #dce7dc;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 10px 36px rgba(16, 46, 24, 0.06);
+}
+.status-card { text-align: center; padding: 36px 28px; }
+.eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #0d631b;
+  margin-bottom: 8px;
+}
+.eyebrow-muted { color: #64748b; }
+h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.subtitle { margin-bottom: 20px; }
+.cred-note {
+  margin: 2px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ecf7ee;
+  border: 1px solid #cce7d1;
+  color: #14532d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.cred-note code {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+}
+form { display: flex; flex-direction: column; gap: 14px; }
+.grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+input, select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14px;
+}
+input:focus, select:focus {
+  outline: 2px solid #0d631b;
+  outline-offset: 1px;
+  background: #ffffff;
+}
+.email-group {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+.email-group input {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  min-width: 0;
+}
+.email-group input:focus { outline: none; background: #ffffff; }
+.email-domain {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0d631b;
+  background: #ecf7ee;
+  border-left: 1px solid #cbd5e1;
+  white-space: nowrap;
+}
+.alert {
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.alert-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.btn-primary {
+  margin-top: 6px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: #0d631b;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-primary:hover { background: #0a5116; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.summary-box {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.summary-box div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.summary-box span { color: #64748b; }
+.summary-box strong { color: #0f172a; word-break: break-all; }
+footer {
+  padding: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+}
+@media (max-width: 600px) {
+  .grid-two { grid-template-columns: 1fr; }
+  .card { padding: 22px 18px; }
+}
+

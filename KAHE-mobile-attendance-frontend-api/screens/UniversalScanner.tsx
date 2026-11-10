@@ -40,7 +40,7 @@ export function UniversalScanner({ auth, role, onBack, expectedSessionId, embedd
         setPhase('QR detected. Recording student attendance...');
         const result = await submitProfessorScan(auth.token, qr.sessionId, data, confirmOutsideSchedule);
         if (result.decision !== 'ACCEPT') throw new Error(result.decisionReason || 'Attendance was not recorded.');
-        if (mounted.current) setOutcome({ kind: 'success', title: 'Student marked present', message: result.studentName + (result.enrollmentId ? ' ? ' + result.enrollmentId : '') + '. Attendance is saved.', badge: 'PRESENT' });
+        if (mounted.current) setOutcome({ kind: 'success', title: 'Student marked present', message: result.studentName + (result.enrollmentId ? ' · ' + result.enrollmentId : '') + '. Attendance is saved.', badge: 'PRESENT' });
       } else {
         if (qr.type !== 'SESSION_BROADCAST') throw new Error('This is a student pass. Scan the QR shown on the classroom screen.');
         const flow = await getStudentFlow(auth.token, qr.sessionId);
@@ -91,7 +91,7 @@ export function UniversalScanner({ auth, role, onBack, expectedSessionId, embedd
     <ConfirmModal visible={pendingScan !== null} title="Outside scheduled time" message="This session has not started yet or has already ended. Mark this student anyway?" confirmText="Continue and mark" onConfirm={() => { const data = pendingScan!; setPendingScan(null); void scan({ data }, true); }} onCancel={() => { setPendingScan(null); retry(); }} />
     {!embedded && <Back onPress={onBack} disabled={busy} />}
     {!embedded && <Text style={styles.screenTitle}>{faculty ? 'Scan student pass' : 'Scan classroom QR'}</Text>}
-    <Text style={styles.screenLead}>Keep the code inside the fixed square. The frame stays still.</Text>
+    <Text style={styles.screenLead}>Align the QR code inside the frame.</Text>
     <View style={styles.fixedCameraBox}>
       <CameraView key={cameraKey} style={StyleSheet.absoluteFill} facing="back" zoom={0} enableTorch={torch} barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={busy || pendingScan !== null || (!faculty && !confirmed) || cameraError ? undefined : event => { void scan(event); }}

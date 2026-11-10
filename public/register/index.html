@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KAHE Student Registration</title>
+  <link rel="stylesheet" href="/register/style.css">
+  <script defer src="/register/app.js"></script>
+</head>
+<body>
+  <header>
+    <span class="brand">KAHE <strong>Attendance</strong></span>
+    <span class="header-tag">Student Onboarding</span>
+  </header>
+
+  <main>
+    <section id="loading-card" class="card status-card">
+      <span class="eyebrow">STUDENT REGISTRATION</span>
+      <h1>Checking registration status...</h1>
+      <p>Please wait while we load campus registration details.</p>
+    </section>
+
+    <section id="closed-card" class="card status-card" hidden>
+      <span class="eyebrow eyebrow-muted">REGISTRATION CLOSED</span>
+      <h1>Student registration is closed</h1>
+      <p>Self-registration is currently turned off. Please contact your department staff or administrator to create your student account.</p>
+    </section>
+
+    <section id="form-card" class="card" hidden aria-labelledby="register-title">
+      <span class="eyebrow">STUDENT REGISTRATION</span>
+      <h1 id="register-title">Create your student account</h1>
+      <p class="subtitle">Register once to sign in on the KAHE Attendance app.</p>
+
+      <form id="register-form" novalidate>
+        <div class="field">
+          <label for="full-name">Full name</label>
+          <input id="full-name" type="text" autocomplete="name" placeholder="e.g. Aarav Kumar" required>
+        </div>
+
+        <div class="field">
+          <label for="enrollment-id">Register number</label>
+          <input id="enrollment-id" type="text" autocapitalize="characters" spellcheck="false" placeholder="e.g. 25BECSE234" required>
+        </div>
+
+        <div class="field">
+          <label for="email-local">Institutional email</label>
+          <div class="email-group">
+            <input id="email-local" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. 25becse234" required>
+            <span class="email-domain">@kahedu.edu.in</span>
+          </div>
+        </div>
+
+        <div class="grid-two">
+          <div class="field">
+            <label for="department-id">Department</label>
+            <select id="department-id" required></select>
+          </div>
+          <div class="field">
+            <label for="year-of-study">Year of study</label>
+            <select id="year-of-study" required>
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+              <option value="5">5th Year</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="batch-id">Batch (optional)</label>
+          <select id="batch-id">
+            <option value="">No batch selected</option>
+          </select>
+        </div>
+
+        <p class="cred-note">Your app sign-in password is automatically set to your <strong>register number in UPPERCASE</strong> (for example, <code>25BECSE234</code>).</p>
+
+        <div id="form-error" class="alert alert-error" role="alert" hidden></div>
+
+        <button id="submit-btn" type="submit" class="btn-primary">Create Student Account</button>
+      </form>
+    </section>
+
+    <section id="success-card" class="card status-card" hidden aria-live="polite">
+      <span class="eyebrow">REGISTRATION COMPLETE</span>
+      <h1>Account created</h1>
+      <p>Your student account is ready. Open the <strong>KAHE Attendance</strong> app on your phone and sign in with these credentials:</p>
+      <div class="summary-box">
+        <div><span>Name</span><strong id="done-name"></strong></div>
+        <div><span>Login email</span><strong id="done-email"></strong></div>
+        <div><span>Password</span><strong id="done-password"></strong></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Karpagam Academy of Higher Education · Student Onboarding Portal</footer>
+</body>
+</html>

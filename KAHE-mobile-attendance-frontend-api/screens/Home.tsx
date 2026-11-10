@@ -33,16 +33,24 @@ export function Home({ role, auth, onNavigate, onOpenStudentQr, onOpenFacultyQr 
       <Action kind="secondary" onPress={() => onNavigate('scanner')}><Text style={styles.actionSecondaryText}>{student ? 'Scan Classroom QR' : 'Scan Student QR'}</Text></Action>
     </View>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginVertical: 16 }}>
-      <View style={[styles.emptyCard, { flex: 1, minWidth: 120 }]}><Text style={styles.screenTitle}>{todaySlots.length}</Text><Text>Sessions today</Text></View>
-      <View style={[styles.emptyCard, { flex: 1, minWidth: 120 }]}><Text style={styles.screenTitle}>{student ? todaySlots.filter(slot => slot.attendanceStatus === 'MARKED').length : batches.length}</Text><Text>{student ? 'Marked present' : 'Mentored batches'}</Text></View>
+      <View style={[styles.emptyCard, { flex: 1, minWidth: 120, padding: 16 }]}>
+        <Text style={styles.screenTitle}>{todaySlots.length}</Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>Sessions today</Text>
+      </View>
+      <View style={[styles.emptyCard, { flex: 1, minWidth: 120, padding: 16 }]}>
+        <Text style={styles.screenTitle}>{student ? todaySlots.filter(slot => slot.attendanceStatus === 'MARKED').length : batches.length}</Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>{student ? 'Marked present' : 'Mentored batches'}</Text>
+      </View>
     </View>
     <Text style={styles.screenKicker}>TIMETABLE SNAPSHOT</Text>
     <Text style={styles.sectionHeading}>Today's Schedule</Text>
     {loading && <Text style={styles.loadingText}>Loading sessions...</Text>}
     {!!error && <Text accessibilityRole="alert" style={styles.errorBannerText}>{error}</Text>}
     {todaySlots.slice(0, 3).map(slot => <SessionCard key={slot.id} slot={slot} student={student} onPress={() => student ? onOpenStudentQr(slot) : onOpenFacultyQr(slot)} />)}
-    {!loading && !todaySlots.length && <View style={styles.emptyCard}><Text style={styles.emptyCardTitle}>No sessions today</Text></View>}
-    <Action kind="secondary" onPress={() => onNavigate('timetable')}><Text style={styles.actionSecondaryText}>View weekly timetable</Text></Action>
+    {!loading && !todaySlots.length && <View style={[styles.emptyCard, { marginTop: 8, marginBottom: 12 }]}><Text style={styles.emptyCardTitle}>No sessions today</Text></View>}
+    <View style={{ marginTop: 6 }}>
+      <Action kind="secondary" onPress={() => onNavigate('timetable')}><Text style={styles.actionSecondaryText}>View weekly timetable</Text></Action>
+    </View>
     <Text style={[styles.sectionHeading, { marginTop: 24 }]}>{student ? 'My Enrolled Batches' : 'My Mentored Batches'}</Text>
     {!!batchError && <Text accessibilityRole="alert" style={styles.errorBannerText}>{batchError}</Text>}
     {batches.map(batch => <View key={batch.id} style={[styles.emptyCard, { alignItems: 'flex-start', marginTop: 10 }]}><Text style={styles.emptyCardTitle}>{batch.name}</Text><Text style={styles.screenKicker}>{batch.code}</Text>{!!batch.description && <Text style={styles.screenLead}>{batch.description}</Text>}</View>)}

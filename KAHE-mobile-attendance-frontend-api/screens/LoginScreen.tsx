@@ -3,8 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from "react";
-import { login, getApiBaseUrl, setCustomApiBaseUrl, type AuthSession } from "../lib/api";
-import { type Role } from "../lib/navigation";
+import { login, type AuthSession } from "../lib/api";
 import { colors, iconName, getErrorMessage } from "../theme";
 import { styles } from "../styles";
 import { Action } from "../components/ui";
@@ -13,8 +12,6 @@ import { Action } from "../components/ui";
 export function LoginScreen({ onAuthenticated }: { onAuthenticated: (auth: AuthSession) => void }) {
   const [email, setEmail] = useState(__DEV__ ? "student.john@university.edu" : "");
   const [password, setPassword] = useState(__DEV__ ? "password123" : "");
-  const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
-  const [showServerConfig, setShowServerConfig] = useState(!getApiBaseUrl());
   const [roleType, setRoleType] = useState<"student" | "faculty">("student");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,7 +33,6 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (auth: AuthS
     setLoading(true);
     setError("");
     try {
-      if (serverUrl.trim()) setCustomApiBaseUrl(serverUrl.trim());
       const session = await login(email.trim(), password);
       onAuthenticated(session);
     } catch (err) {
@@ -124,39 +120,6 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: (auth: AuthS
               style={styles.textInput}
             />
           </View>
-
-          {/* Server Config Toggle */}
-          <Pressable
-            onPress={() => setShowServerConfig(!showServerConfig)}
-            style={styles.serverConfigToggle}
-          >
-            <MaterialCommunityIcons
-              name={iconName(showServerConfig ? "chevron-up" : "cog-outline")}
-              size={14}
-              color={colors.primary}
-            />
-            <Text style={styles.serverConfigText}>
-              {showServerConfig ? "Hide connection settings" : "Server connection"}
-            </Text>
-          </Pressable>
-
-          {showServerConfig && (
-            <View style={styles.serverConfigBox}>
-              <Text style={styles.fieldLabel}>Server address</Text>
-              <TextInput
-                value={serverUrl}
-                onChangeText={setServerUrl}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                accessibilityLabel="Attendance server address"
-                placeholder="https://attendance.example.edu"
-                placeholderTextColor={colors.textSubtle}
-                style={styles.textInputSimple}
-              />
-              <Text style={styles.connectionHint}>For use over mobile internet, enter your server's public HTTPS address. Your computer must stay online while hosting it.</Text>
-            </View>
-          )}
 
           {error ? (
             <View style={styles.errorBanner}>

@@ -62,6 +62,17 @@ class ApiClient {
     return this.request<{ user: User }>('/auth/me');
   }
 
+  async getStudentRegistrationSettings(): Promise<{ enabled: boolean }> {
+    return this.request<{ enabled: boolean }>('/auth/student-register/settings');
+  }
+
+  async setStudentRegistrationSettings(enabled: boolean): Promise<{ enabled: boolean }> {
+    return this.request<{ enabled: boolean }>('/auth/student-register/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled })
+    });
+  }
+
   logout() {
     localStorage.removeItem('kahe_admin_token');
   }

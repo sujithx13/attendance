@@ -11,6 +11,7 @@ import { testSecurityAndIntegrity } from './security-and-integrity.test.js';
 import { ENV } from '../src/config/env.js';
 import { testClassroomDisplay } from './display.test.js';
 import { testSessionExperience } from './session-experience.test.js';
+import { testStudentRegistration } from './student-registration.test.js';
 
 async function runAllTests(): Promise<void> {
   const startTime = Date.now();
@@ -34,6 +35,7 @@ async function runAllTests(): Promise<void> {
     await testSecurityAndIntegrity();
     await testClassroomDisplay();
     await testSessionExperience();
+    await testStudentRegistration();
 
     const elapsedMs = Date.now() - startTime;
     console.log('\n================================================================');

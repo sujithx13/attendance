@@ -150,6 +150,7 @@ export type UserProfile = {
   departmentCode?: string;
   departmentName?: string;
   yearOfStudy?: number;
+  phoneNumber?: string;
 };
 
 export function getDepartments(token: string) {

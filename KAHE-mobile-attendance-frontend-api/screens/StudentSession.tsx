@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useEffect, useState } from 'react';
 import { AppState, Pressable, ScrollView, Text, View } from 'react-native';
 import { getSlotContext, type AuthSession, type MobileTimetableSlot, type SessionContext } from '../lib/api';
@@ -6,7 +7,7 @@ import { StudentQrPass } from '../components/StudentQrPass';
 import { Action, Back } from '../components/ui';
 import { UniversalScanner } from './UniversalScanner';
 import { styles } from '../styles';
-import { colors, getErrorMessage } from '../theme';
+import { colors, getErrorMessage, iconName } from '../theme';
 
 export function StudentSession({ auth, slot, onBack }: { auth: AuthSession; slot: MobileTimetableSlot; onBack: () => void }) {
   const [tab, setTab] = useState<'scan' | 'pass'>('scan');
@@ -37,7 +38,7 @@ export function StudentSession({ auth, slot, onBack }: { auth: AuthSession; slot
       </View>
     </View>
     {error ? <ScrollView contentContainerStyle={styles.screenContent}><Text accessibilityRole="alert" style={styles.errorBannerText}>{error}</Text><Action onPress={() => setRevision(value => value + 1)}><Text style={styles.actionPrimaryText}>Retry connection</Text></Action></ScrollView>
-      : marked ? <ScrollView contentContainerStyle={styles.scanOutcomeContent}><Text style={styles.resultTitle}>Attendance marked</Text><Text style={styles.resultMessage}>You are marked present for this session.</Text><Action onPress={onBack}><Text style={styles.actionPrimaryText}>Done</Text></Action></ScrollView>
+      : marked ? <ScrollView contentContainerStyle={styles.scanOutcomeContent}><View style={styles.scanOutcomeCard}><View style={styles.resultSuccessBubble}><MaterialCommunityIcons name={iconName('check-circle')} size={42} color={colors.primaryLight} /></View><View style={styles.resultBadge}><Text style={styles.resultBadgeText}>VERIFIED PRESENT</Text></View><Text style={styles.resultTitle}>Attendance marked</Text><Text style={styles.resultMessage}>You are marked present for this session.</Text><View style={{ width: '100%', marginTop: 20 }}><Action onPress={onBack}><Text style={styles.actionPrimaryText}>Done</Text></Action></View></View></ScrollView>
       : context?.sessionId && (context.sessionActive || tab === 'pass') ? tab === 'scan'
         ? <UniversalScanner key={context.sessionId} auth={auth} role="student" onBack={onBack} expectedSessionId={context.sessionId} embedded onResult={() => setRevision(value => value + 1)} />
         : <ScrollView contentContainerStyle={styles.screenContent}><StudentQrPass auth={auth} sessionId={context.sessionId} /></ScrollView>

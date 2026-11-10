@@ -9,6 +9,8 @@ import { ENV } from '../config/env.js';
 import { UserRole } from '../config/constants.js';
 import { UserTokenPayload, AuthResponse } from '../types/auth.types.js';
 import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
+import { RegistrationService } from '../services/registration.service.js';
+import { httpError } from '../services/access.service.js';
 
 export class AuthController {
   static async login(req: Request, res: Response): Promise<void> {
@@ -171,5 +173,43 @@ export class AuthController {
     );
 
     res.status(200).json({ success: true, message: 'Face embedding updated successfully.' });
+  }
+
+  static async studentRegisterOptions(_req: Request, res: Response): Promise<void> {
+    res.json(await RegistrationService.getPublicOptions());
+  }
+
+  static async studentRegister(req: Request, res: Response): Promise<void> {
+    const enabled = await RegistrationService.isStudentSelfRegistrationEnabled();
+    if (!enabled) {
+      throw httpError(403, 'Student self-registration is currently closed. Contact your department staff or administrator.');
+    }
+
+    const user = await RegistrationService.registerStudentAccount(req.body || {});
+    res.status(201).json({
+      message: 'Registration complete. You can now sign in on the KAHE Attendance app.',
+      user
+    });
+  }
+
+  static async staffRegisterStudent(req: AuthenticatedRequest, res: Response): Promise<void> {
+    const user = await RegistrationService.registerStudentAccount(req.body || {});
+    res.status(201).json({
+      message: 'Student registered successfully.',
+      user
+    });
+  }
+
+  static async getStudentRegistrationSettings(_req: AuthenticatedRequest, res: Response): Promise<void> {
+    const enabled = await RegistrationService.isStudentSelfRegistrationEnabled();
+    res.json({ enabled });
+  }
+
+  static async setStudentRegistrationSettings(req: AuthenticatedRequest, res: Response): Promise<void> {
+    if (typeof req.body?.enabled !== 'boolean') {
+      throw httpError(400, 'enabled must be a boolean.');
+    }
+    const enabled = await RegistrationService.setStudentSelfRegistrationEnabled(req.body.enabled);
+    res.json({ enabled });
   }
 }

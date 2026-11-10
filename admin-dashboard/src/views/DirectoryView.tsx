@@ -7,7 +7,9 @@ import {
   CheckCircle2,
   AlertCircle,
   GraduationCap,
-  Briefcase
+  Briefcase,
+  Link2,
+  Copy
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Modal } from '../components/layout/Modal.js';
@@ -41,20 +43,54 @@ export const DirectoryView: React.FC = () => {
   const [enrollmentId, setEnrollmentId] = useState('');
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [selfRegEnabled, setSelfRegEnabled] = useState<boolean>(false);
+  const [selfRegBusy, setSelfRegBusy] = useState<boolean>(false);
+
+  const registerUrl = `${window.location.origin}/register/`;
 
   const fetchUsersAndDepts = async () => {
     try {
-      const [usersRes, deptsRes] = await Promise.all([
+      const [usersRes, deptsRes, regRes] = await Promise.all([
         api.getUsers(),
-        api.getDepartments()
+        api.getDepartments(),
+        api.getStudentRegistrationSettings().catch(() => ({ enabled: false }))
       ]);
       setUsers(usersRes.users || []);
       setDepartments(deptsRes.departments || []);
+      setSelfRegEnabled(Boolean(regRes.enabled));
       if (deptsRes.departments?.length > 0 && !departmentId) {
         setDepartmentId(deptsRes.departments[0].id);
       }
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to load directory.' });
+    }
+  };
+
+  const handleToggleSelfReg = async (enabled: boolean) => {
+    setSelfRegBusy(true);
+    setFeedback(null);
+    try {
+      const res = await api.setStudentRegistrationSettings(enabled);
+      setSelfRegEnabled(res.enabled);
+      setFeedback({
+        type: 'success',
+        message: res.enabled
+          ? 'Temporary student registration link is now open.'
+          : 'Student self-registration is now closed. Only staff/admin can register students.'
+      });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Could not update registration setting.' });
+    } finally {
+      setSelfRegBusy(false);
+    }
+  };
+
+  const handleCopyRegisterUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(registerUrl);
+      setFeedback({ type: 'success', message: `Copied registration URL: ${registerUrl}` });
+    } catch {
+      setFeedback({ type: 'error', message: `Share this URL: ${registerUrl}` });
     }
   };
 
@@ -191,6 +227,45 @@ export const DirectoryView: React.FC = () => {
           <span>Add a member</span>
         </button>
       </div>
+
+      {/* Temporary Student Self-Registration Toggle */}
+      <section className="card access-policy" aria-label="Student self-registration link">
+        <div className="access-policy-icon">
+          <Link2 size={22} />
+        </div>
+        <div className="access-policy-copy">
+          <div className="access-policy-title">
+            <h3>Temporary student registration link</h3>
+            <span className={`badge ${selfRegEnabled ? 'badge-emerald' : 'badge-amber'}`}>
+              {selfRegEnabled ? 'Open' : 'Closed'}
+            </span>
+          </div>
+          <p>
+            {selfRegEnabled
+              ? `Students can create accounts at ${registerUrl}. Turn this off once onboarding is complete.`
+              : 'Public registration is closed. Only administrators and faculty/staff can register new students.'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {selfRegEnabled && (
+            <button type="button" className="btn btn-secondary" onClick={handleCopyRegisterUrl}>
+              <Copy size={14} />
+              <span>Copy link</span>
+            </button>
+          )}
+          <label className="access-switch">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={selfRegEnabled}
+              disabled={selfRegBusy}
+              onChange={(e) => void handleToggleSelfReg(e.target.checked)}
+            />
+            <span className="access-switch-track" aria-hidden="true" />
+            <span>{selfRegEnabled ? 'Enabled' : 'Disabled'}</span>
+          </label>
+        </div>
+      </section>
 
       {/* Global Feedback */}
       {feedback && (

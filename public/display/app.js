@@ -56,5 +56,6 @@ function tick() { const remaining = Math.ceil((expiresAt - Date.now()) / 1000); 
 $('new-code').onclick = start;
 $('disconnect').onclick = async () => { try { await request('/state', { method: 'DELETE', headers: { Authorization: 'Bearer ' + secret } }); } finally { end('Screen disconnected. Get a new code to pair again.'); } };
 $('fullscreen').onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { $('fullscreen').textContent = 'Use your browser’s full-screen option'; } };
+document.addEventListener('fullscreenchange', () => { $('fullscreen').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; });
 window.addEventListener('pagehide', stop);
 start();

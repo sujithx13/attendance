@@ -10,9 +10,15 @@ Base prefix: `/api/v1`. Most routes require `Authorization: Bearer <JWT>`. Bodie
 | --- | --- |
 | `GET /health` | Process health response, outside `/api/v1` |
 | `GET /display/` | Public browser pairing page |
+| `GET /register/` | Temporary public student registration page (when enabled by admin) |
 | `GET /downloads/kahe-attendance-preview.apk` | Optional public local artifact download |
 | `POST /api/v1/auth/login` | `{email,password}` -> `{token,user}` |
 | `POST /api/v1/auth/register` | Admin-authenticated account creation |
+| `GET /api/v1/auth/student-register/options` | Public registration status, departments and batches (empty when closed) |
+| `POST /api/v1/auth/student-register` | Public student-only registration when enabled by admin |
+| `GET /api/v1/auth/student-register/settings` | Admin-only read of self-registration toggle |
+| `PUT /api/v1/auth/student-register/settings` | Admin-only `{enabled}` toggle for `/register/` |
+| `POST /api/v1/auth/staff-register-student` | Admin or Professor student-only account creation |
 | `GET /api/v1/auth/me` | Current account |
 | `PUT /api/v1/auth/profile` | Profile update |
 | `PUT /api/v1/auth/face-embedding` | Admin-only embedding enrollment; comparison support is not liveness |

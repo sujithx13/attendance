@@ -82,7 +82,7 @@ function AttendanceApp() {
           />
         )}
 
-        {screen === "profile" && <ProfileScreen auth={auth} onBack={() => setScreen("home")} onTestingLogout={() => setShowSignOutConfirm(true)} />}
+        {screen === "profile" && <ProfileScreen auth={auth} onBack={() => setScreen("home")} onSignOut={() => setShowSignOutConfirm(true)} />}
 
         {screen !== 'scanner' && <Dock role={role} screen={screen} onNavigate={setScreen} />}
 

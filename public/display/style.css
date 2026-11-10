@@ -19,6 +19,7 @@ header {
   justify-content:space-between;
   padding:20px 4vw;
   border-bottom:1px solid #dfe8df;
+  border-top:4px solid #0d631b;
   background:white
 }
 .brand {
@@ -81,9 +82,10 @@ p {
   font-size:clamp(35px,7vw,100px);
   letter-spacing:.13em;
   font-weight:800;
-  color:#12552b;
+  color:#0d631b;
   background:white;
   border:1px solid #d9e5db;
+  box-shadow:0 10px 36px #102e180d;
   border-radius:20px;
   padding:28px 14px;
   margin:32px auto 16px;
@@ -91,6 +93,24 @@ p {
 }
 #pairing-status,#live-status {
   font-size:16px
+}
+.status-pill {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 14px;
+  border-radius:999px;
+  background:#ecf7ee;
+  color:#0d631b;
+  font-weight:700
+}
+.btn-disconnect {
+  border-color:#f0d2d2;
+  color:#b42318
+}
+.btn-disconnect:hover {
+  background:#fef2f2;
+  border-color:#e5b3b3
 }
 #live {
   display:grid;

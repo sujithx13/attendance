@@ -12,6 +12,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
+      '/register': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false
+      },
       '/ws': {
         target: 'ws://localhost:4000',
         ws: true

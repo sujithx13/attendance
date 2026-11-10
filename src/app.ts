@@ -26,12 +26,27 @@ export function createApp(): Express {
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use('/display', (_req, res, next) => {
+  const staticWithSecurityHeaders = (folder: string): express.RequestHandler[] => [
+    (_req, res, next) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+      );
+      next();
+    },
+    express.static(path.resolve(process.cwd(), 'public', folder))
+  ];
+
+  app.use('/display', ...staticWithSecurityHeaders('display'));
+  app.use('/register', ...staticWithSecurityHeaders('register'));
+  app.use('/register', (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     next();
-  }, express.static(path.resolve(process.cwd(), 'public', 'display')));
+  }, express.static(path.resolve(process.cwd(), 'public', 'register')));
   app.get('/downloads/kahe-attendance-preview.apk', (_req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.download(path.resolve(process.cwd(), 'artifacts', 'kahe-attendance-preview.apk'));
