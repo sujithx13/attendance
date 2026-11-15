@@ -19,6 +19,14 @@ interface DashboardOverviewProps {
   onNavigate: (view: NavView) => void;
 }
 
+const getTodayKolkata = () =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -26,6 +34,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const genMessage = '';
   const [slotCount, setSlotCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
+
+  // Batch attendance overview state
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayKolkata);
+  const [batchAttendanceData, setBatchAttendanceData] = useState<Array<{
+    id: string;
+    name: string;
+    code: string;
+    presentCount: number;
+    totalStudents: number;
+  }>>([]);
+  const [loadingAttendance, setLoadingAttendance] = useState<boolean>(false);
 
   useEffect(() => {
     const loadOverviewData = async () => {
@@ -48,8 +67,66 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     loadOverviewData();
   }, []);
 
+  useEffect(() => {
+    if (!batches.length) return;
+    let isCancelled = false;
+
+    const fetchBatchAttendance = async () => {
+      setLoadingAttendance(true);
+      try {
+        const results = await Promise.all(
+          batches.map(async (batch) => {
+            try {
+              const res = await api.batchAttendance(batch.id, selectedDate);
+              const students = res.students || [];
+              const presentCount = students.filter((s: any) =>
+                Object.values(s.attendance || {}).some(
+                  (status: any) => status === 'PRESENT' || status === 'LATE'
+                )
+              ).length;
+              return {
+                id: batch.id,
+                name: batch.name,
+                code: batch.code,
+                presentCount,
+                totalStudents: batch.memberCount ?? students.length
+              };
+            } catch (err) {
+              console.error(`Failed to load attendance for batch ${batch.id}:`, err);
+              return {
+                id: batch.id,
+                name: batch.name,
+                code: batch.code,
+                presentCount: 0,
+                totalStudents: batch.memberCount ?? 0
+              };
+            }
+          })
+        );
+        if (!isCancelled) {
+          setBatchAttendanceData(results);
+        }
+      } catch (err) {
+        console.error('Failed to load batch attendance summary', err);
+      } finally {
+        if (!isCancelled) {
+          setLoadingAttendance(false);
+        }
+      }
+    };
+
+    fetchBatchAttendance();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [batches, selectedDate]);
+
   const studentsCount = users.filter((u) => u.role === 'STUDENT').length;
   const facultyCount = users.filter((u) => u.role === 'PROFESSOR').length;
+
+  const totalPresentees = batchAttendanceData.reduce((sum, b) => sum + b.presentCount, 0);
+  const totalBatchStudents = batchAttendanceData.reduce((sum, b) => sum + b.totalStudents, 0);
 
 
 
@@ -168,6 +245,134 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           <div style={{ fontSize: '12px', color: 'var(--primary-container)', marginTop: '4px' }}>
             Scheduled timetable slots
           </div>
+        </div>
+      </div>
+
+      {/* Batch Attendance Summary */}
+      <div className="card" style={{ padding: '24px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '18px',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          <div>
+            <h3 className="card-title" style={{ margin: 0 }}>
+              <span>Batch attendance summary</span>
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--secondary)', marginTop: '4px' }}>
+              Daily presentee counts across cohorts
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label htmlFor="batch-attendance-date" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--secondary)' }}>
+              Date
+            </label>
+            <input
+              id="batch-attendance-date"
+              type="date"
+              className="form-input"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                width: 'auto',
+                padding: '6px 12px',
+                fontSize: '13px'
+              }}
+            />
+            {selectedDate !== getTodayKolkata() && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '6px 10px', fontSize: '12px' }}
+                onClick={() => setSelectedDate(getTodayKolkata())}
+              >
+                Today
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Batch Name</th>
+                <th>Presentees</th>
+                <th>Total Students</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingAttendance && !batchAttendanceData.length ? (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: 'center', padding: '24px', color: 'var(--secondary)' }}>
+                    Loading batch attendance...
+                  </td>
+                </tr>
+              ) : batchAttendanceData.length === 0 ? (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: 'center', padding: '24px', color: 'var(--secondary)' }}>
+                    No batches found.
+                  </td>
+                </tr>
+              ) : (
+                batchAttendanceData.map((b) => (
+                  <tr key={b.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--on-surface)' }}>
+                      <div>{b.name}</div>
+                      {b.code && (
+                        <div style={{ fontSize: '11.5px', color: 'var(--secondary)', fontWeight: 400, marginTop: '2px' }}>
+                          {b.code}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        className={b.presentCount > 0 ? 'badge badge-emerald' : 'badge'}
+                        style={
+                          b.presentCount === 0
+                            ? { backgroundColor: 'var(--surface-container-high)', color: 'var(--secondary)' }
+                            : undefined
+                        }
+                      >
+                        {b.presentCount}
+                      </span>
+                    </td>
+                    <td style={{ fontWeight: 500, color: 'var(--on-surface-variant)' }}>
+                      {b.totalStudents}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {batchAttendanceData.length > 0 && (
+              <tfoot>
+                <tr style={{ backgroundColor: 'var(--surface-container-low)', fontWeight: 700 }}>
+                  <td style={{ padding: '12px 18px', color: 'var(--on-surface)' }}>Total</td>
+                  <td style={{ padding: '12px 18px' }}>
+                    <span
+                      className={totalPresentees > 0 ? 'badge badge-emerald' : 'badge'}
+                      style={
+                        totalPresentees === 0
+                          ? { backgroundColor: 'var(--surface-container-high)', color: 'var(--secondary)' }
+                          : undefined
+                      }
+                    >
+                      {totalPresentees}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 18px', color: 'var(--on-surface)' }}>
+                    {totalBatchStudents}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
         </div>
       </div>
 
