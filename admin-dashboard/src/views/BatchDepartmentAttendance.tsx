@@ -21,7 +21,6 @@ export function parseDepartmentFromRegisterNumber(regNo?: string): string {
   const engMatch = clean.match(/^\d{2}(?:BE|BT)([A-Z]+)\d+$/);
   if (engMatch) {
     let dept = engMatch[1];
-    if (dept === 'CSE') dept = 'CS';
     if (dept === 'AD') dept = 'AI & DS';
     return dept;
   }
@@ -40,7 +39,6 @@ export function parseDepartmentFromRegisterNumber(regNo?: string): string {
     let dept = genericMatch[1];
     if (dept.startsWith('BE') || dept.startsWith('BT')) dept = dept.substring(2);
     if (dept.endsWith('U') || dept.endsWith('P')) dept = dept.slice(0, -1);
-    if (dept === 'CSE') dept = 'CS';
     if (dept === 'AD') dept = 'AI & DS';
     return dept || 'Other';
   }
