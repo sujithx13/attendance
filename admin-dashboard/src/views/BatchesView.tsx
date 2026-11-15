@@ -1,6 +1,7 @@
 import { DayTemplateFields, type DayOptions } from './DayTemplateFields.js';
 import { BatchLoginAccess } from './BatchLoginAccess.js';
 import { BatchAttendance } from './BatchAttendance.js';
+import { BatchDepartmentAttendance } from './BatchDepartmentAttendance.js';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
@@ -717,6 +718,10 @@ export const BatchesView: React.FC<{ batchWindowId?: string; section?: BatchSect
                 </div>
                 <div className="batch-quick-actions"><button className="btn btn-primary" onClick={() => setActiveTab('attendance')}>View daily attendance</button><button className="btn btn-secondary" onClick={() => setActiveTab('alerts')}>View alerts & login requests</button></div>
                 {selectedBatch.description && <p className="batch-description">{selectedBatch.description}</p>}
+
+                {selectedBatch.id !== 'batch_pharmacy_2027' && !selectedBatch.code.toUpperCase().includes('PHARMACY') && (
+                  <BatchDepartmentAttendance batchId={selectedBatch.id} />
+                )}
 
 <details className="batch-rules"><summary>Batch rules</summary>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
