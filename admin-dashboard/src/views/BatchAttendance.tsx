@@ -114,47 +114,53 @@ export function BatchAttendance({ batchId }: { batchId: string }) {
   return (
     <section className="card">
       <h3>Daily attendance</h3>
-      <div className="filter-bar" style={{ flexWrap: 'wrap', gap: '14px' }}>
-        <label>
-          Date <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
-        </label>
-        <label>
-          Session{' '}
-          <select className="form-select" value={session} onChange={e => handleSessionFilterChange(e.target.value)}>
-            <option value="">All sessions</option>
-            {report.sessions.map((s, idx) => (
-              <option key={s.id} value={s.id}>
-                Session {idx + 1}: {label(s)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {session && (
-          <>
-            <label>
-              <input type="checkbox" checked={present} onChange={e => setPresent(e.target.checked)} /> Present
-            </label>
-            <label>
-              <input type="checkbox" checked={absent} onChange={e => setAbsent(e.target.checked)} /> Absent
-            </label>
-          </>
-        )}
-        <label>
-          Sort{' '}
-          <select className="form-select" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
-            <option value="name">Name</option>
-            <option value="registerNumber">Register number</option>
-          </select>
-        </label>
+      <div className="filter-bar" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '14px' }}>
+          <label>
+            Date
+            <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} style={{ height: '44px' }} />
+          </label>
+          <label>
+            Session
+            <select className="form-select" value={session} onChange={e => handleSessionFilterChange(e.target.value)} style={{ height: '44px', minWidth: '180px' }}>
+              <option value="">All sessions</option>
+              {report.sessions.map((s, idx) => (
+                <option key={s.id} value={s.id}>
+                  Session {idx + 1}: {label(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {session && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--secondary)' }}>Status filter</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '44px' }}>
+                <label style={{ display: 'inline-flex', flexDirection: 'row', alignItems: 'center', gap: '6px', margin: 0, cursor: 'pointer', fontSize: '13px', fontWeight: 500, color: 'var(--on-surface)' }}>
+                  <input type="checkbox" checked={present} onChange={e => setPresent(e.target.checked)} /> Present
+                </label>
+                <label style={{ display: 'inline-flex', flexDirection: 'row', alignItems: 'center', gap: '6px', margin: 0, cursor: 'pointer', fontSize: '13px', fontWeight: 500, color: 'var(--on-surface)' }}>
+                  <input type="checkbox" checked={absent} onChange={e => setAbsent(e.target.checked)} /> Absent
+                </label>
+              </div>
+            </div>
+          )}
+          <label>
+            Sort by
+            <select className="form-select" value={sort} onChange={e => setSort(e.target.value as typeof sort)} style={{ height: '44px' }}>
+              <option value="name">Name</option>
+              <option value="registerNumber">Register number</option>
+            </select>
+          </label>
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--secondary)' }}>Download:</span>
+        <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '10px' }}>
+          <label>
+            Download attendance
             <select
               className="form-select"
               value={downloadTarget}
               onChange={e => setDownloadTarget(e.target.value)}
-              style={{ maxWidth: '280px' }}
+              style={{ minWidth: '220px', maxWidth: '300px', height: '44px' }}
             >
               <option value="all">Whole day (All sessions)</option>
               {report.sessions.map((s, idx) => (
@@ -165,12 +171,23 @@ export function BatchAttendance({ batchId }: { batchId: string }) {
             </select>
           </label>
           <button
+            type="button"
             className="btn btn-secondary"
             onClick={() => exportExcel(downloadTarget)}
             disabled={!!error || !report.students.length || !report.sessions.length}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              height: '44px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '0 16px',
+              fontWeight: 600,
+              fontSize: '13.5px',
+              whiteSpace: 'nowrap',
+            }}
           >
-            <Download size={14} />
+            <Download size={15} />
             <span>Download Excel</span>
           </button>
         </div>
