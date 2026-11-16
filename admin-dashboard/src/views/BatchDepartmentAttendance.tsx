@@ -17,11 +17,12 @@ export function parseDepartmentFromRegisterNumber(regNo?: string): string {
   if (!regNo) return 'Other';
   const clean = regNo.trim().toUpperCase();
 
-  // Case 1: Engineering format with BE or BT prefix (e.g., 25BECSE234, 25BTAD040, 25BECY002, 25BEECE030, 25BTCB001)
-  const engMatch = clean.match(/^\d{2}(?:BE|BT)([A-Z]+)\d+$/);
+  // Case 1: Engineering format with BE or BT prefix (e.g., 25BECSE234, 25LBTAD001, 24BECY002, 24BEECE030, 24BEBME001)
+  const engMatch = clean.match(/^\d{2}L?(?:BE|BT)([A-Z]+)\d+$/);
   if (engMatch) {
     let dept = engMatch[1];
     if (dept === 'AD') dept = 'AI & DS';
+    if (dept === 'CY') dept = 'CYBER';
     return dept;
   }
 
@@ -37,9 +38,11 @@ export function parseDepartmentFromRegisterNumber(regNo?: string): string {
   const genericMatch = clean.match(/^\d{2}([A-Z]+)\d+$/);
   if (genericMatch) {
     let dept = genericMatch[1];
-    if (dept.startsWith('BE') || dept.startsWith('BT')) dept = dept.substring(2);
+    if (dept.startsWith('LBE') || dept.startsWith('LBT')) dept = dept.substring(3);
+    else if (dept.startsWith('BE') || dept.startsWith('BT')) dept = dept.substring(2);
     if (dept.endsWith('U') || dept.endsWith('P')) dept = dept.slice(0, -1);
     if (dept === 'AD') dept = 'AI & DS';
+    if (dept === 'CY') dept = 'CYBER';
     return dept || 'Other';
   }
 

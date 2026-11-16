@@ -15,6 +15,9 @@ web-build/
 
 # Embedded Database & Local Data
 data/
+backups/
+*.sql
+*.sql.gz
 *.db
 *.sqlite
 
